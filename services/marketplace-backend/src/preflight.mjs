@@ -10,6 +10,7 @@ import {
   ApiError,
 } from "./domain.mjs";
 import { SELECTORS, readTerms } from "./decode.mjs";
+import { collectionKey } from "./collection-catalog.mjs";
 import { createCatalog } from "./catalog-access.mjs";
 export async function preflight(store, rpc, config, input) {
   const account = address(input.account),
@@ -21,6 +22,24 @@ export async function preflight(store, rpc, config, input) {
   );
   if (new Set(keys).size !== keys.length)
     throw new ApiError("DUPLICATE_ORDER", "Duplicate cart order.");
+  // ERC-1155 collections are never checkout-eligible (#117): the shared
+  // checkout path serves ERC-721 carts only.
+  if (config.chainId)
+    for (const [index] of items.entries()) {
+      const indexed = await store.get("order", keys[index]);
+      if (!indexed?.collection) continue;
+      const record = store.get(
+        "catalog_collection",
+        collectionKey(config.chainId, address(indexed.collection)),
+      );
+      if (record?.standard && record.standard !== "ERC721")
+        return {
+          canSubmit: false,
+          reasons: ["ERC1155_NOT_CHECKOUT_ELIGIBLE"],
+          rows: [],
+          total: null,
+        };
+    }
   const status = await createCatalog(store, config).status();
   if (!status.safeForCheckout || !rpc)
     return {

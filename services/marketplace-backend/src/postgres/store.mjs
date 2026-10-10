@@ -9,6 +9,7 @@ export const TABLES = Object.freeze({
   discovery_anchor: "chain.discovery_anchors",
   class_evidence: "chain.class_evidence",
   backfill_job: "chain.backfill_jobs",
+  erc1155_balance: "market.erc1155_balances",
   token: "market.tokens",
   order: "market.orders",
   activity: "market.activity",

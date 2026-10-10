@@ -27,6 +27,9 @@ const eventEnumWrappers = new Map(
 );
 const NFT_EVENT_NAMES = new Set([
   "Transfer",
+  "TransferSingle",
+  "BatchTransfer",
+  "TransferBatch",
   "Approval",
   "ApprovalForAll",
   "MetadataUpdate",
@@ -238,8 +241,18 @@ const MEMBER_FIELDS = {
   approved: "approved",
   fromtokenid: "fromTokenId",
   totokenid: "toTokenId",
+  ids: "ids",
+  values: "values",
+  amounts: "values",
 };
-const DECIMAL_FIELDS = new Set(["tokenId", "fromTokenId", "toTokenId", "value"]);
+const DECIMAL_FIELDS = new Set([
+  "tokenId",
+  "fromTokenId",
+  "toTokenId",
+  "value",
+  "ids",
+  "values",
+]);
 
 /**
  * ABI-member-driven layout: key members come from keys, data members from
@@ -261,7 +274,21 @@ function decodeWithMembers(raw, source, resolved, members) {
     };
     const type = String(member.type ?? "");
     let value;
-    if (/u256|uint256/i.test(type)) {
+    if (/array/i.test(type)) {
+      // Dynamic arrays are length-prefixed; u256 arrays serialize as pairs.
+      const length = uint(take(1)[0], 252);
+      if (length > 4096)
+        throw new ApiError("INVALID_EVENT", "Event array exceeds bound.");
+      const items = [];
+      if (/u256|uint256/i.test(type)) {
+        for (let i = 0; i < length; i++) {
+          const [low, high] = take(2);
+          items.push(fromU256(low, high));
+        }
+      } else
+        for (let i = 0; i < length; i++) items.push(uint(take(1)[0], 252));
+      value = items;
+    } else if (/u256|uint256/i.test(type)) {
       const [low, high] = take(2);
       value = fromU256(low, high);
     } else if (/contractaddress|::address/i.test(type)) value = address(take(1)[0]);
@@ -305,6 +332,41 @@ function decodeWithMembers(raw, source, resolved, members) {
             to: values.to,
             tokenId: values.tokenId,
           };
+  } else if (resolved.name === "TransferSingle") {
+    require("from");
+    require("to");
+    require("tokenId");
+    require("value");
+    event = {
+      type: "erc1155_transfer",
+      collection: source,
+      from: values.from,
+      to: values.to,
+      tokenId: values.tokenId,
+      value: values.value,
+    };
+  } else if (
+    resolved.name === "BatchTransfer" ||
+    resolved.name === "TransferBatch"
+  ) {
+    require("from");
+    require("to");
+    require("ids");
+    require("values");
+    if (
+      !Array.isArray(values.ids) ||
+      !Array.isArray(values.values) ||
+      values.ids.length !== values.values.length
+    )
+      throw new ApiError("INVALID_EVENT", "Mismatched batch transfer fields.");
+    event = {
+      type: "erc1155_batch_transfer",
+      collection: source,
+      from: values.from,
+      to: values.to,
+      ids: values.ids,
+      values: values.values,
+    };
   } else if (resolved.name === "Approval") {
     require("owner");
     require("spender");
@@ -358,7 +420,38 @@ function decodeFlattened(raw, source, resolved) {
       to: r.addr(),
       tokenId: r.u256(),
     };
-  else if (resolved.name === "Approval")
+  else if (resolved.name === "TransferSingle")
+    e = {
+      type: "erc1155_transfer",
+      collection: source,
+      from: r.addr(),
+      to: r.addr(),
+      tokenId: r.u256(),
+      value: r.u256(),
+    };
+  else if (
+    resolved.name === "BatchTransfer" ||
+    resolved.name === "TransferBatch"
+  ) {
+    const from = r.addr(),
+      to = r.addr();
+    const count = r.int(64),
+      ids = [];
+    for (let i = 0; i < count; i++) ids.push(r.u256());
+    const amountsCount = r.int(64),
+      values = [];
+    if (amountsCount !== count)
+      throw new ApiError("INVALID_EVENT", "Mismatched batch transfer fields.");
+    for (let i = 0; i < count; i++) values.push(r.u256());
+    e = {
+      type: "erc1155_batch_transfer",
+      collection: source,
+      from,
+      to,
+      ids,
+      values,
+    };
+  } else if (resolved.name === "Approval")
     e = {
       type: "approval",
       collection: source,

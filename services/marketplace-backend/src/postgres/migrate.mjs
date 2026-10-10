@@ -19,7 +19,8 @@ export async function migrate(pool) {
       [4, "004-collection-catalog.sql"],
       [5, "005-discovery-anchors.sql"],
       [6, "006-class-evidence.sql"],
-  [7, "007-backfill-jobs.sql"],
+      [7, "007-backfill-jobs.sql"],
+      [8, "008-erc1155-balances.sql"],
     ]) {
       const sql = readFileSync(new URL(`./${name}`, import.meta.url), "utf8");
       const checksum = createHash("sha256").update(sql).digest("hex");

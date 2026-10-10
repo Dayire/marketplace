@@ -296,14 +296,25 @@ test("ERC-1155 transfers decode distinctly and project no 721 ownership", () => 
     eventIndex: 0,
     timestamp: 100,
   };
+  // #117: ERC-1155 transfers project balances, never a 721 token row.
+  const mintRaw = {
+    ...raw,
+    keys: [SELECTORS.Transfer, address("0"), "0x2", "3", "0"],
+  };
+  const mint = decodeEvent(mintRaw, cfg, summary);
   const writes = [];
   projectEvent(
-    event,
+    mint,
     provenance,
     () => null,
     (kind) => writes.push(kind),
   );
-  assert.deepEqual(writes, [], "no token row is invented for ERC-1155 transfers");
+  assert.deepEqual(
+    writes,
+    ["erc1155_balance", "activity"],
+    "balance rows project without inventing a token row",
+  );
+  assert.ok(!writes.includes("token"), "no 721 ownership row for ERC-1155");
   const undecodable = {
     type: "undecodable",
     collection: "0x9",
@@ -313,7 +324,11 @@ test("ERC-1155 transfers decode distinctly and project no 721 ownership", () => 
   projectEvent(undecodable, provenance, () => null, (kind) =>
     writes.push(kind),
   );
-  assert.deepEqual(writes, [], "raw-only rows project no market state");
+  assert.deepEqual(
+    writes,
+    ["erc1155_balance", "activity"],
+    "raw-only rows project no market state",
+  );
 });
 
 test("prepareBlock quarantines unsupported collection events and keeps raw", () => {
