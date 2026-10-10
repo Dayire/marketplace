@@ -3,6 +3,7 @@ import { runtime } from "./runtime.mjs";
 import { indexerOptions, discoveryOptions } from "./indexer-options.mjs";
 import { scanOnce } from "./indexer.mjs";
 import { discoverOnce } from "./discovery-scan.mjs";
+import { classifyOnce } from "./classify-scan.mjs";
 import { refreshMetadata } from "./metadata.mjs";
 const mode = process.argv[2];
 if (!["index", "metadata", "discover"].includes(mode))
@@ -86,8 +87,20 @@ try {
                   limit: 10,
                 });
         if (mode === "index") caughtUp = result.indexed >= result.head;
-        else if (mode === "discover")
+        else if (mode === "discover") {
           caughtUp = !!result.caughtUp || result.to >= result.head;
+          // Discovery and classification are one enrichment loop: classify the
+          // bounded batch that sits behind the latest checkpoint, then idle.
+          const classified = await classifyOnce(store, rpc, config, {});
+          if (classified.classified || classified.failed)
+            console.log(
+              JSON.stringify({
+                event: "classify_progress",
+                at: new Date().toISOString(),
+                result: classified,
+              }),
+            );
+        }
         lastProgress = Date.now();
         lastError = null;
         console.log(

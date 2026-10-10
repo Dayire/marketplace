@@ -1,0 +1,23 @@
+{
+  "selectors": {
+    "supports_interface": "0xfe80f537b66d12a00b6d3c072b44afbb716e78dde5c3f0ef116ee93d3e3283",
+    "get_implementation": "0x21691762da057c1b71f851f9b709e0c143628acf6e0cbc9735411a65663d747"
+  },
+  "interfaces": {
+    "isrc5": "0x3f918d17e5ee77373b56385708f855659a07f75997f365cf87748628532a055",
+    "erc721": "0x33eb2f84c309543403fd69f0d0f363781ef06ef6faeb0131ff16ea3175bd943",
+    "erc1155": "0x6114a8f75559e1b39fcba08ce02961a1aa082d9256a158dd3e64964e4b1b52",
+    "erc2981": "0x2d3414e45a8700c29f119a54b9f11dca0e29e06ddcb214018fc37340e165ed6",
+    "erc165": "0x01ffc9a7",
+    "erc721Legacy": "0x80ac58cd"
+  },
+  "_sources": {
+    "selectors": "Computed with starknet-devnet-sdk hash.getSelectorFromName and verified byte-for-byte against config/marketplace/selectors.json (balance_of, Transfer).",
+    "isrc5": "OpenZeppelin/cairo-contracts packages/interfaces/src/introspection.cairo (ISRC5_ID).",
+    "erc721": "OpenZeppelin/cairo-contracts packages/interfaces/src/token/erc721.cairo (IERC721_ID); the same id is asserted against live mainnet collections in scripts/deployment/runner.mjs assertAssets().",
+    "erc1155": "OpenZeppelin/cairo-contracts packages/interfaces/src/token/erc1155.cairo (IERC1155_ID).",
+    "erc2981": "OpenZeppelin/cairo-contracts packages/interfaces/src/token/erc2981.cairo (IERC2981_ID); also asserted in scripts/deployment/runner.mjs.",
+    "erc165": "EIP-165 supportsInterface selector (0x01ffc9a7).",
+    "erc721Legacy": "EIP-721 interface id (0x80ac58cd) used by pre-SRC5 Cairo 0 collections for ERC165-style introspection."
+  }
+}
