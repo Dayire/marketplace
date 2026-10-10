@@ -51,7 +51,7 @@ export class Store {
       .map((x) => JSON.parse(x.body));
   }
   put(kind, id, body, height) {
-    if (height !== undefined) {
+    if (height != null) {
       const previous = this.db
         .prepare("SELECT body FROM entities WHERE kind=? AND id=?")
         .get(kind, id);
@@ -148,25 +148,45 @@ export class Store {
       .prepare("SELECT hash FROM blocks WHERE number=?")
       .get(block.number);
     if (existing) {
-      if (existing.hash === block.hash) return;
-      throw new ApiError("CHAIN_CONFLICT", "Conflicting canonical block.", 409);
+      if (existing.hash !== block.hash)
+        throw new ApiError("CHAIN_CONFLICT", "Conflicting canonical block.", 409);
+      if (!block.backfill) return;
+      // Backfill overlays project one collection's events into an
+      // already-indexed canonical block instead of short-circuiting (#113).
+    } else {
+      const head = this.head();
+      if (head && block.number !== head.number + 1) {
+        if (block.backfill && block.number < head.number) {
+          const prior = this.db
+            .prepare("SELECT hash FROM blocks WHERE number=?")
+            .get(block.number - 1);
+          if (!prior || prior.hash !== block.parentHash)
+            throw new ApiError(
+              "CHAIN_GAP",
+              "Backfill range is not contiguous with indexed history.",
+              409,
+            );
+        } else
+          throw new ApiError(
+            "CHAIN_GAP",
+            "Block does not extend indexed head.",
+            409,
+          );
+      } else if (head && block.parentHash !== head.hash)
+        throw new ApiError(
+          "CHAIN_GAP",
+          "Block does not extend indexed head.",
+          409,
+        );
     }
-    const head = this.head();
-    if (
-      head &&
-      (block.number !== head.number + 1 || block.parentHash !== head.hash)
-    )
-      throw new ApiError(
-        "CHAIN_GAP",
-        "Block does not extend indexed head.",
-        409,
-      );
     const seen = new Set();
+    const overlay = !!existing; // canonical block row already present (#113)
     this.db.exec("BEGIN IMMEDIATE");
     try {
-      this.db
-        .prepare("INSERT INTO blocks VALUES(?,?,?,?)")
-        .run(block.number, block.hash, block.parentHash, block.timestamp);
+      if (!overlay)
+        this.db
+          .prepare("INSERT INTO blocks VALUES(?,?,?,?)")
+          .run(block.number, block.hash, block.parentHash, block.timestamp);
       for (const [i, event] of block.events.entries()) {
         const tx = event.transactionHash ?? `fixture:${block.hash}`,
           idx = event.eventIndex ?? i;
@@ -190,22 +210,24 @@ export class Store {
         this.project(event, provenance);
       }
       this.recordFloors(block);
-      for (const source of block.sources ?? [])
+      for (const source of block.sources ?? []) {
+        const prior = this.get("progress", source);
+        // Overlay replays never move a source checkpoint backwards (#113).
+        if (block.backfill && prior && prior.block >= block.number) continue;
         this.put(
           "progress",
           source,
           {
             source,
             startBlock:
-              this.get("progress", source)?.startBlock ??
-              block.sourceStarts?.[source] ??
-              null,
+              prior?.startBlock ?? block.sourceStarts?.[source] ?? null,
             block: block.number,
             hash: block.hash,
             observedAt: block.observedAt ?? Date.now(),
           },
           block.number,
         );
+      }
       this.db.exec("COMMIT");
     } catch (e) {
       this.db.exec("ROLLBACK");

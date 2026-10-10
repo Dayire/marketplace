@@ -40,8 +40,27 @@ async function scanRange(
     commitBatchSize = 250,
     fastHistory = false,
     historyWindow = 100000,
+    scope = null,
+    from: fromOption = null,
   } = {},
 ) {
+  // Scoped mode = collection backfill overlay (#113): only the scoped
+  // sources are read, written and checkpointed; marketplace acquisition and
+  // every other source's progress stay untouched.
+  const backfillMode = Array.isArray(scope);
+  if (backfillMode) {
+    if (!scope.length)
+      throw new ApiError("INVALID_SCOPE", "Backfill scope cannot be empty.");
+    if (fromOption !== null && (!Number.isSafeInteger(fromOption) || fromOption < 0))
+      throw new ApiError("INVALID_SCOPE", "Invalid backfill start block.");
+    for (const value of scope)
+      if (!config.collections.some((c) => address(c.address) === address(value)))
+        throw new ApiError(
+          "INVALID_SCOPE",
+          `Backfill scope ${value} is not a registered collection.`,
+        );
+  } else if (fromOption !== null)
+    throw new ApiError("INVALID_SCOPE", "Explicit from requires a scope.");
   const started = performance.now(),
     rateLimitsBefore = rpc.rateLimits ?? 0;
   for (const [value, max] of [
@@ -90,12 +109,12 @@ async function scanRange(
     await store.rewind(head.number - 1);
     head = await store.head();
   }
-  const sources = [
+  const allSources = [
     ...config.collections.map((c) => ({
       address: address(c.address),
       start: c.startBlock,
     })),
-    ...(config.marketplace
+    ...(config.marketplace && !backfillMode
       ? [
           {
             address: address(config.marketplace),
@@ -104,6 +123,11 @@ async function scanRange(
         ]
       : []),
   ];
+  const sources = backfillMode
+    ? allSources.filter((source) =>
+        scope.some((value) => address(value) === source.address),
+      )
+    : allSources;
   if (
     !sources.length ||
     sources.some((s) => !Number.isSafeInteger(s.start) || s.start < 0)
@@ -112,26 +136,29 @@ async function scanRange(
       "INVALID_REGISTRY",
       "Verified source start blocks are required.",
     );
-  for (const source of sources) {
-    const progress = await store.get("progress", source.address);
-    if (
-      head &&
-      source.start <= head.number &&
-      (!progress ||
-        !Number.isSafeInteger(progress.startBlock) ||
-        progress.startBlock > source.start ||
-        progress.block !== head.number ||
-        !equal(progress.hash, head.hash))
-    )
-      throw new ApiError(
-        "SOURCE_BACKFILL_REQUIRED",
-        `Source ${source.address} has incomplete historical coverage. Rebuild the chain database with the complete registry before publishing it.`,
-        409,
-      );
-  }
-  const from = head
-    ? head.number + 1
-    : Math.min(...sources.map((s) => s.start));
+  // A backfill overlay is the sanctioned repair for this exact condition,
+  // so scoped runs skip the completeness gate they exist to close (#113).
+  if (!backfillMode)
+    for (const source of sources) {
+      const progress = await store.get("progress", source.address);
+      if (
+        head &&
+        source.start <= head.number &&
+        (!progress ||
+          !Number.isSafeInteger(progress.startBlock) ||
+          progress.startBlock > source.start ||
+          progress.block !== head.number ||
+          !equal(progress.hash, head.hash))
+      )
+        throw new ApiError(
+          "SOURCE_BACKFILL_REQUIRED",
+          `Source ${source.address} has incomplete historical coverage. Rebuild the chain database with the complete registry before publishing it.`,
+          409,
+        );
+    }
+  const from =
+    fromOption ??
+    (head ? head.number + 1 : Math.min(...sources.map((s) => s.start)));
   const history =
     store.dialect === "postgres" ? await store.get("status", "history") : null;
   let cutoff = history?.cutoff;
@@ -286,15 +313,18 @@ async function scanRange(
       return {
         n,
         hash: block.block_hash,
-        prepared: prepareBlock(
-          n,
-          block,
-          found,
-          sources,
-          config,
-          observedAt,
-          decoderContext,
-        ),
+        prepared: {
+          ...prepareBlock(
+            n,
+            block,
+            found,
+            sources,
+            config,
+            observedAt,
+            decoderContext,
+          ),
+          backfill: backfillMode,
+        },
       };
     } catch (error) {
       return { n, hash: block.block_hash, error };

@@ -8,6 +8,7 @@ export const TABLES = Object.freeze({
   source_coverage: "chain.source_coverage",
   discovery_anchor: "chain.discovery_anchors",
   class_evidence: "chain.class_evidence",
+  backfill_job: "chain.backfill_jobs",
   token: "market.tokens",
   order: "market.orders",
   activity: "market.activity",
@@ -205,7 +206,7 @@ export class PgStore {
     const name = table(kind);
     let value = { ...body };
     if (kind === "token") for (const key of METADATA_KEYS) delete value[key];
-    if (height !== undefined) {
+    if (height != null) {
       const before =
         (await this.query(`SELECT body FROM ${name} WHERE id=$1`, [id])).rows[0]
           ?.body ?? null;
@@ -271,7 +272,11 @@ export class PgStore {
           "SELECT 1 FROM market.orders WHERE kind='listing' LIMIT 1",
         )
       ).rowCount;
-      if (listings || (head && blocks[0].number <= head.number)) {
+      if (
+        listings ||
+        (head && blocks[0].number <= head.number) ||
+        blocks.some((block) => block.backfill)
+      ) {
         for (const block of blocks) await this.applyBlock(block);
         return;
       }
@@ -556,29 +561,46 @@ export class PgStore {
         );
       const existing = await this.canonicalBlock(block.number);
       if (existing) {
-        if (existing.hash === block.hash) return;
-        throw new ApiError(
-          "CHAIN_CONFLICT",
-          "Conflicting canonical block",
-          409,
-        );
+        if (existing.hash !== block.hash)
+          throw new ApiError(
+            "CHAIN_CONFLICT",
+            "Conflicting canonical block",
+            409,
+          );
+        if (!block.backfill) return;
+        // Backfill overlays project one collection's events into an
+        // already-indexed canonical block instead of short-circuiting (#113).
+      } else {
+        const head = await this.head();
+        if (head && block.number !== head.number + 1) {
+          if (block.backfill && block.number < head.number) {
+            const prior = await this.canonicalBlock(block.number - 1);
+            if (!prior || prior.hash !== block.parentHash)
+              throw new ApiError(
+                "CHAIN_GAP",
+                "Backfill range is not contiguous with indexed history",
+                409,
+              );
+          } else
+            throw new ApiError(
+              "CHAIN_GAP",
+              "Block does not extend indexed head",
+              409,
+            );
+        } else if (head && block.parentHash !== head.hash)
+          throw new ApiError(
+            "CHAIN_GAP",
+            "Block does not extend indexed head",
+            409,
+          );
       }
-      const head = await this.head();
-      if (
-        head &&
-        (block.number !== head.number + 1 || block.parentHash !== head.hash)
-      )
-        throw new ApiError(
-          "CHAIN_GAP",
-          "Block does not extend indexed head",
-          409,
-        );
-      await this.query("INSERT INTO chain.blocks VALUES($1,$2,$3,$4)", [
-        block.number,
-        block.hash,
-        block.parentHash,
-        block.timestamp,
-      ]);
+      if (!existing)
+        await this.query("INSERT INTO chain.blocks VALUES($1,$2,$3,$4)", [
+          block.number,
+          block.hash,
+          block.parentHash,
+          block.timestamp,
+        ]);
       const seen = new Set();
       for (const [i, event] of block.events.entries()) {
         const tx = event.transactionHash ?? `fixture:${block.hash}`,
@@ -604,13 +626,16 @@ export class PgStore {
       }
       await this.recordFloors(block);
       for (const source of block.sources ?? []) {
-        const old = await this.get("progress", source);
+        const prior = await this.get("progress", source);
+        // Overlay replays never move a source checkpoint backwards (#113).
+        if (block.backfill && prior && prior.block >= block.number) continue;
         await this.put(
           "progress",
           source,
           {
             source,
-            startBlock: old?.startBlock ?? block.sourceStarts?.[source] ?? null,
+            startBlock:
+              prior?.startBlock ?? block.sourceStarts?.[source] ?? null,
             block: block.number,
             hash: block.hash,
             observedAt: block.observedAt ?? Date.now(),
