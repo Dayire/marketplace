@@ -51,6 +51,7 @@ export async function runtime(env = process.env) {
       throw new Error("DATABASE_URL is required for PostgreSQL.");
     const { Pool } = (await import("pg")).default;
     const { PgStore } = await import("./postgres/store.mjs");
+    const { SCHEMA_VERSION } = await import('./postgres/migrate.mjs');
     const max = Number(env.MARKETPLACE_PG_POOL_SIZE ?? 6);
     if (!Number.isInteger(max) || max < 2 || max > 30)
       throw new Error("PostgreSQL pool size must be 2–30.");
@@ -80,13 +81,16 @@ export async function runtime(env = process.env) {
       if (
         !(
           await store.query(
-            "SELECT to_regclass('chain.collection_catalog') AS table_name",
+            "SELECT to_regclass('public.marketplace_migrations') AS table_name",
           )
         ).rows[0].table_name
       )
         throw new Error(
-          "PostgreSQL schema migration 4 is required before startup.",
+          `PostgreSQL schema migration ${SCHEMA_VERSION} is required before startup.`,
         );
+      const versions = (await store.query('SELECT count(*) AS n FROM public.marketplace_migrations WHERE version BETWEEN 1 AND $1', [SCHEMA_VERSION])).rows[0];
+      if (Number(versions.n) !== SCHEMA_VERSION)
+        throw new Error(`PostgreSQL schema migration ${SCHEMA_VERSION} is required before startup.`);
       const actual = (
         await store.query("SELECT value FROM chain.meta WHERE key='identity'")
       ).rows[0]?.value;

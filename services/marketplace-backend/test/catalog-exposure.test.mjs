@@ -98,6 +98,9 @@ test("tokens and search label indexed scope apart from chain scope", () => {
   assert.equal(results.collections[0].name, "Demo");
   assert.ok(Array.isArray(results.tokens));
   assert.ok(Array.isArray(results.discoveredCollections), "scope key always present");
+  store.app.prepare("INSERT INTO app_meta VALUES(?,?)").run(
+    `catalog_visibility:${collectionKey(CHAIN, D)}`, JSON.stringify({ visible: true }),
+  );
   const chainResults = catalog.search("d1");
   const discovered = chainResults.discoveredCollections;
   assert.equal(discovered.length, 1, "chain records exposed by address");

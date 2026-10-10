@@ -308,3 +308,16 @@ test("immutable image cache is reused for another NFT after a worker restart", a
     first.image,
   );
 });
+
+test("large inline artwork is cached and reused without exceeding index tuple limits", async (t) => {
+  const db = await testDatabase(t), pool = db.pool();
+  await migrate(pool);
+  const store = new PgStore(pool);
+  await store.applyBlock(block(1, "2"));
+  const image = "data:image/png;base64," + randomBytes(24000).toString("base64");
+  await refreshMetadata(store, { contract: async () => uriFelts({ name: "Inline art", image }) }, { chain: "LOCAL" }, { limit: 1 });
+  const token = await store.get("token", address("9") + ":1");
+  assert.ok(token.image);
+  assert.equal(await store.cachedImage(image), token.image);
+  assert.equal(await store.cachedImage(image + "different"), null);
+});

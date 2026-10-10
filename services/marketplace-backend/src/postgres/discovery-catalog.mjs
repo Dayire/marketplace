@@ -1,4 +1,5 @@
 import { address, boundedInteger, ApiError } from "../domain.mjs";
+import { collectionVisible } from "../catalog-state.mjs";
 import {
   collectionKey,
   collectionRecord,
@@ -113,7 +114,8 @@ export class PgDiscoveryCatalog {
       coverage: await this.coverage(a),
       indexed: record.state === "indexed",
       registered: !!row.registered,
-      visible: !row.restricted && (row.visibility?.visible ?? !!row.registered),
+      visible: collectionVisible(this.config, a, { registered: row.registered, record,
+        visibility: row.visibility, restricted: row.restricted }),
       verified: row.verification?.verified === true,
       tradable:
         !!this.config.marketplace &&

@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, it, vi } from "vitest";
 import { TokenDetailView } from "./token-detail-view";
 
@@ -362,4 +363,106 @@ it("requires a proceeds review for matching collection and token offers", async 
   });
   show();
   await waitFor(() => expect(screen.getAllByText("Review offer")).toHaveLength(2));
+});
+
+it("lets any visitor share the asset with its listed price", async () => {
+  process.env.NEXT_PUBLIC_SITE_URL = "https://market.realms.world";
+  ownership.mockReturnValue({ effectiveIsOwner: false, holderAddress: "0x9" });
+  listings.mockReturnValue({
+    data: [
+      {
+        id: "LOCAL:0x900:0x9:1",
+        owner: "0x9",
+        tokenId: "1",
+        price: (27n * ETH).toString(),
+        currency: STRK,
+        status: "placed",
+      },
+    ],
+  });
+  show();
+
+  await userEvent.setup().click(screen.getByRole("button", { name: "Share" }));
+  const post = await screen.findByRole("menuitem", { name: "Post on X" });
+  const intent = new URL(post.getAttribute("href")!);
+  expect(intent.searchParams.get("url")).toBe("https://market.realms.world/collections/0xa/1");
+  expect(intent.searchParams.get("text")).toBe("Realm One for 27 STRK on Realms.market");
+  expect(screen.queryByRole("heading", { name: "Your listing is live" })).toBeNull();
+});
+
+it("leaves a previous owner's listing out of the share text, as the preview does", async () => {
+  ownership.mockReturnValue({ effectiveIsOwner: false, holderAddress: "0x2" });
+  listings.mockReturnValue({
+    data: [
+      {
+        id: "LOCAL:0x900:0x9:1",
+        owner: "0x9",
+        tokenId: "1",
+        price: (10n * ETH).toString(),
+        currency: STRK,
+        status: "placed",
+      },
+    ],
+  });
+  show();
+
+  await userEvent.setup().click(screen.getByRole("button", { name: "Share" }));
+  const post = await screen.findByRole("menuitem", { name: "Post on X" });
+  expect(new URL(post.getAttribute("href")!).searchParams.get("text")).not.toContain("STRK");
+});
+
+it("prompts the owner to share once their listing is indexed, until dismissed", () => {
+  ownership.mockReturnValue({ effectiveIsOwner: true, holderAddress: "0x3" });
+  listings.mockReturnValue({
+    data: [
+      {
+        id: "LOCAL:0x900:0x3:7",
+        owner: "0x3",
+        tokenId: "1",
+        price: (2n * ETH).toString(),
+        currency: STRK,
+        status: "placed",
+      },
+    ],
+  });
+  show();
+
+  const prompt = screen.getByRole("region", { name: "Your listing is live" });
+  expect(prompt).toHaveTextContent("your price of 2 STRK");
+  expect(screen.getByRole("link", { name: "Post on X" })).toHaveAttribute("target", "_blank");
+
+  fireEvent.click(screen.getByRole("button", { name: "Dismiss share suggestion" }));
+  expect(screen.queryByRole("region", { name: "Your listing is live" })).toBeNull();
+});
+
+it("keeps a dismissed share prompt hidden after the page reloads", () => {
+  window.localStorage.clear();
+  ownership.mockReturnValue({ effectiveIsOwner: true, holderAddress: "0x3" });
+  const placed = {
+    id: "LOCAL:0x900:0x3:8",
+    owner: "0x3",
+    tokenId: "1",
+    price: (2n * ETH).toString(),
+    currency: STRK,
+    status: "placed",
+  };
+  listings.mockReturnValue({ data: [placed] });
+  const first = show();
+  fireEvent.click(screen.getByRole("button", { name: "Dismiss share suggestion" }));
+  first.unmount();
+
+  show();
+  expect(screen.queryByRole("region", { name: "Your listing is live" })).toBeNull();
+
+  cleanup();
+  listings.mockReturnValue({ data: [{ ...placed, id: "LOCAL:0x900:0x3:9" }] });
+  show();
+  expect(screen.getByRole("region", { name: "Your listing is live" })).toBeInTheDocument();
+  window.localStorage.clear();
+});
+
+it("does not prompt the owner to share before a listing is indexed", () => {
+  ownership.mockReturnValue({ effectiveIsOwner: true, holderAddress: "0x3" });
+  show();
+  expect(screen.queryByRole("region", { name: "Your listing is live" })).toBeNull();
 });

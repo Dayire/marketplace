@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { seedRegisteredCollections } from "./discovery-catalog.mjs";
+export const SCHEMA_VERSION = 11;
 /** Only the migration connection runs DDL. Runtime roles receive explicit grants. */
 export async function migrate(pool) {
   const client = await pool.connect();
@@ -16,11 +17,14 @@ export async function migrate(pool) {
       [1, "001-initial.sql"],
       [2, "002-history-ranges.sql"],
       [3, "003-image-sources.sql"],
-      [4, "004-collection-catalog.sql"],
-      [5, "005-discovery-anchors.sql"],
-      [6, "006-class-evidence.sql"],
-      [7, "007-backfill-jobs.sql"],
-      [8, "008-erc1155-balances.sql"],
+      [4, "004-image-source-hashes.sql"],
+      [5, "005-collection-catalog.sql"],
+      [6, "006-discovery-anchors.sql"],
+      [7, "007-class-evidence.sql"],
+      [8, "008-backfill-jobs.sql"],
+      [9, "009-erc1155-balances.sql"],
+      [10, "010-erc1155-balance-invariants.sql"],
+      [11, "011-reconciliation-lookups.sql"],
     ]) {
       const sql = readFileSync(new URL(`./${name}`, import.meta.url), "utf8");
       const checksum = createHash("sha256").update(sql).digest("hex");
@@ -36,7 +40,7 @@ export async function migrate(pool) {
         );
       if (!existing) {
         await client.query(sql);
-        if (version === 4) await seedRegisteredCollections(client);
+        if (version === 5) await seedRegisteredCollections(client);
         await client.query(
           "INSERT INTO public.marketplace_migrations(version,checksum) VALUES($1,$2)",
           [version, checksum],

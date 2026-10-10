@@ -1,0 +1,39 @@
+[
+  {
+    "sample": "historical",
+    "exactExistingProjectionEqual": false,
+    "originalFieldValuesAndRowCountsPreserved": true,
+    "differences": [
+      {
+        "path": "/activity/0/decoder",
+        "kind": "added",
+        "after": "nft-members.v2"
+      },
+      {
+        "path": "/activity/0/decoderVersion",
+        "kind": "added",
+        "after": "nft-events.v2"
+      },
+      {
+        "path": "/activity/0/transactionIndex",
+        "kind": "added",
+        "after": 201
+      }
+    ],
+    "normalization": "Only observation/fetch wall clocks removed; chain provenance objects and raw events retained by replay-utils.stable"
+  },
+  {
+    "sample": "recent",
+    "exactExistingProjectionEqual": true,
+    "originalFieldValuesAndRowCountsPreserved": true,
+    "differences": [],
+    "normalization": "Only observation/fetch wall clocks removed; chain provenance objects and raw events retained by replay-utils.stable"
+  },
+  {
+    "sample": "live",
+    "exactExistingProjectionEqual": true,
+    "originalFieldValuesAndRowCountsPreserved": true,
+    "differences": [],
+    "normalization": "Only observation/fetch wall clocks removed; chain provenance objects and raw events retained by replay-utils.stable"
+  }
+]

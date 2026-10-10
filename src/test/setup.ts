@@ -71,6 +71,11 @@ if (typeof window !== "undefined" && !window.IntersectionObserver) {
 }
 
 beforeAll(() => {
+  // Files that opt into the Node environment (e.g. server image rendering) have no DOM.
+  if (typeof HTMLElement === "undefined") {
+    server.listen({ onUnhandledRequest: "error" });
+    return;
+  }
   if (!HTMLElement.prototype.hasPointerCapture) {
     HTMLElement.prototype.hasPointerCapture = () => false;
   }

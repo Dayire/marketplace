@@ -38,6 +38,7 @@ export async function provisionRoles(pool, roles) {
     const api = identifier(roles.api.name),
       index = identifier(roles.index.name),
       metadata = identifier(roles.metadata.name);
+    await client.query(`GRANT SELECT ON public.marketplace_migrations TO ${api},${index},${metadata}`);
     await client.query(
       `GRANT USAGE ON SCHEMA chain,market,app,media TO ${api}`,
     );
@@ -59,7 +60,8 @@ export async function provisionRoles(pool, roles) {
       `GRANT USAGE ON SCHEMA chain,market,media TO ${metadata}`,
     );
     await client.query(
-      `GRANT SELECT ON chain.meta,market.tokens,market.token_metadata,market.metadata_jobs,market.attributes,media.assets TO ${metadata}`,
+      `GRANT SELECT ON chain.meta,chain.blocks,chain.collection_catalog,chain.class_evidence,
+        market.tokens,market.erc1155_balances,market.token_metadata,market.metadata_jobs,market.attributes,media.assets TO ${metadata}`,
     );
     await client.query(
       `GRANT INSERT,UPDATE,DELETE ON market.token_metadata,market.metadata_jobs,market.attributes TO ${metadata}`,

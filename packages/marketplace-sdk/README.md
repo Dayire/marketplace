@@ -2,7 +2,7 @@
 
 Framework-independent marketplace client and trading workflows for our standalone Cairo contracts and owned indexer. This private workspace package can be packed for another application; it has not been published to a registry.
 
-TanStack Query Core owns fetching, deduplication, query cancellation and cache state. HTTP runs through an injectable Fetch implementation. The SDK imports no React, Next.js, wallet connector or browser storage. The Node indexer remains a separate service and still has no third-party runtime dependencies.
+TanStack Query Core owns fetching, deduplication, query cancellation and cache state. HTTP runs through an injectable Fetch implementation. The SDK imports no React, Next.js, wallet connector or browser storage. The Node indexer remains a separate service using Node built-ins and its approved PostgreSQL driver.
 
 ## Create a client
 
@@ -27,6 +27,23 @@ const page = await client.tokens.list(collectionAddress, {
 Cached token asset paths are rebased to the configured API endpoint so another application does not inherit the original Next.js proxy path. Set `assetBaseUrl` when the public asset proxy differs from the API origin (particularly for server-side rendering). External image URLs remain unchanged.
 
 Public groups include collections/traits/statistics, tokens/activity/best bid, orders/listings/offers/lookup, account holdings/orders/activity, search, status/config, notifications/reports, authentication, trades and transactions. `request<T>` and `queryOptions<T>` support additional public endpoints without requiring private imports. HTTP failures retain a code and status; reads and mutations default to no automatic retries. Pass an AbortSignal for cancellation or use QueryClient cancellation. Currency formatting uses each client's registry populated by `config()`; configure custom metadata explicitly before formatting without a config read.
+
+`accounts.holdings(address)` retains the ERC721 `ApiToken.owner` interface.
+`accounts.balances(address)` returns positive ERC1155 `ApiBalance` rows with
+lossless decimal `tokenId` and `balance` strings and the original uint256 limbs.
+Both reads accept an explicit collection, token IDs and bounded keyset pagination.
+The latest classified standard suppresses obsolete rows left by class upgrades;
+historical activity remains available.
+
+Collection reads expose indexed coverage, source freshness and bounded direct-RPC
+reconciliation evidence. Check `source.ready`, `source.reasons` and
+`reconciliation.confidence` before treating a projection as current or complete.
+Holdings and balance pages include `basis: 'indexed'`, replay `generation`, and
+`sources` with `sourceScope: 'page'`: evidence covers returned collections and an
+explicit collection filter, rather than the entire account's chain inventory.
+Search's `discoveredCollections` uses `basis: 'chain'` to identify discovery
+records independently of indexed holdings. Publication, verification and trading
+permission remain separate operator policies.
 
 Clients own their query cache by default. An injected `queryClient` is supported; keys include endpoint, chain, chain ID, pinned deployment, client cache scope and account scope. Use a distinct cache scope for independently authenticated consumers. Create a client per server request, supply that request's credentials explicitly, and dispose it afterward. Never reuse a user-authenticated server singleton. `setAccountScope` changes subsequent query identity; it does not authenticate an account.
 

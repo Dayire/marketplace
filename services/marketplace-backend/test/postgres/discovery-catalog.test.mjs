@@ -40,7 +40,7 @@ const block = (number) => ({
   events: [],
 });
 
-test("migration 4 preserves existing collections, metadata, application/media records and trading policy", async (t) => {
+test("catalog migration preserves existing collections, metadata, application/media records and trading policy", async (t) => {
   const db = await testDatabase(t),
     pool = db.pool();
   await pool.query(

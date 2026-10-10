@@ -1,0 +1,941 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-10-10T05:45:28.295Z",
+  "source": "https://starknet-rpc.publicnode.com",
+  "chain": "SN_MAIN",
+  "chainId": "0x534e5f4d41494e",
+  "runtime": "v22.23.3",
+  "scope": "Four individual frozen mint receipts replayed into isolated local projections and compared with live public getters at their exact historical block hashes",
+  "fixtureSha256": "84b034925bb9fbfaa20fd4eb86bfa8ca4025fba50784f6ba4e93aac0cbaa1774",
+  "realmsFixtureSha256": "8c36607727844f35dff56b1ba82e63dfccf6b1d3d2ec26346077352005a68e2a",
+  "elapsedMs": 2880.254,
+  "logicalRpcCalls": 36,
+  "ok": true,
+  "cases": [
+    {
+      "name": "briq-cairo0-mint",
+      "collection": "0x01435498bf393da86b4733b9264a86b58a42b31f8d8b8ba309593e5c17847672",
+      "tokenId": "3190301942744182704822482809340382345497061835012608297513007532978724667392",
+      "expectedOwner": "0x0004b6767aea46adba81b673177c30dcad9cfc719aaf6487c03f8319389a1548",
+      "transactionHash": "0x595ba40ff386dee1514da6d64f348b0d950329b4188b30d4c6e1838c2527851",
+      "transactionIndex": 0,
+      "eventIndex": 0,
+      "receiptMatches": true,
+      "classIdentityMatches": true,
+      "abiIdentityMatches": true,
+      "logicalRpcCalls": 9,
+      "ok": true,
+      "reconciliation": {
+        "state": "matched",
+        "ok": true,
+        "confidence": "partial",
+        "checked": 1,
+        "projectedCount": "1",
+        "mismatches": [],
+        "errors": [],
+        "limitations": [
+          "total_supply_unavailable",
+          "enumeration_unavailable"
+        ],
+        "block": 10708,
+        "hash": "0x145a23480a00e316b9f29f57064f0580e0a7c95e828f9bab3060ec8ede370c0",
+        "replayGeneration": 1,
+        "observedAt": 1791611125672,
+        "supply": null,
+        "provenance": {
+          "source": "direct_rpc",
+          "chainId": "0x534e5f4d41494e",
+          "classHash": "0x71429d7850e4421236ed7e4f58b7778fc0e0c01b8770335ba4140bcb13733e9",
+          "implementationClassHash": "0x737075858b01863de9f079aaf45e2a8677eed1b9e7601464957bac0a73dc289",
+          "blockId": {
+            "block_hash": "0x145a23480a00e316b9f29f57064f0580e0a7c95e828f9bab3060ec8ede370c0"
+          },
+          "aliases": {
+            "balance_of": [
+              "balanceOf"
+            ],
+            "owner_of": [
+              "ownerOf"
+            ],
+            "token_uri": [
+              "tokenURI"
+            ],
+            "transfer_from": [
+              "transferFrom"
+            ],
+            "approve": [
+              "approve"
+            ],
+            "get_approved": [
+              "getApproved"
+            ],
+            "is_approved_for_all": [
+              "isApprovedForAll"
+            ],
+            "token_of_owner_by_index": [
+              "tokenOfOwnerByIndex"
+            ],
+            "supports_interface": [
+              "supportsInterface"
+            ]
+          },
+          "proxyEvidence": [
+            {
+              "kind": "proxy_implementation",
+              "adapter": "oz-cairo0-implementation-slot.v1",
+              "blockId": {
+                "block_hash": "0x145a23480a00e316b9f29f57064f0580e0a7c95e828f9bab3060ec8ede370c0"
+              },
+              "proxyClassHash": "0x71429d7850e4421236ed7e4f58b7778fc0e0c01b8770335ba4140bcb13733e9",
+              "storageKey": "0x3f1abe37754ee6ca6d8dfa1036089f78a07ebe8f3b1e336cdbf3274d25becd0",
+              "implementationClassHash": "0x737075858b01863de9f079aaf45e2a8677eed1b9e7601464957bac0a73dc289",
+              "resolved": true
+            }
+          ],
+          "projectionDigest": "7aac1d0ddcc8f4d581ccd3e286beabc452ea3dc8ff0bce4c8c71ab8c113ac0c9"
+        }
+      }
+    },
+    {
+      "name": "realms-mint-1038",
+      "collection": "0x07ae27a31bb6526e3de9cf02f081f6ce0615ac12a6d7b85ee58b8ad7947a2809",
+      "tokenId": "1038",
+      "expectedOwner": "0x074c2664cfc8aff6b1e24befa444488f89a060f9a58550cd5ef1f9c4809a80c3",
+      "transactionHash": "0x519a0257d1b09b255324dac34aab3f5e01a9a88a73cef02a0c9084881892eb8",
+      "transactionIndex": 201,
+      "eventIndex": 0,
+      "receiptMatches": true,
+      "classIdentityMatches": true,
+      "abiIdentityMatches": true,
+      "logicalRpcCalls": 7,
+      "ok": true,
+      "reconciliation": {
+        "state": "matched",
+        "ok": true,
+        "confidence": "partial",
+        "checked": 1,
+        "projectedCount": "1",
+        "mismatches": [],
+        "errors": [],
+        "limitations": [
+          "total_supply_unavailable",
+          "enumeration_unavailable"
+        ],
+        "block": 664768,
+        "hash": "0x4448c28cfe9ea9928884b355c37b260da14a524db47a250a945c71bfb2a4ec4",
+        "replayGeneration": 1,
+        "observedAt": 1791611126313,
+        "supply": null,
+        "provenance": {
+          "source": "direct_rpc",
+          "chainId": "0x534e5f4d41494e",
+          "classHash": "0x42731c2355af9d59eda314ea3cca49ea3cc85173b2ca3c35c6c9df1c087cc43",
+          "implementationClassHash": null,
+          "blockId": {
+            "block_hash": "0x4448c28cfe9ea9928884b355c37b260da14a524db47a250a945c71bfb2a4ec4"
+          },
+          "aliases": {
+            "balance_of": [
+              "balance_of",
+              "balanceOf"
+            ],
+            "owner_of": [
+              "owner_of",
+              "ownerOf"
+            ],
+            "token_uri": [
+              "token_uri",
+              "tokenURI"
+            ],
+            "transfer_from": [
+              "transfer_from",
+              "transferFrom"
+            ],
+            "safe_transfer_from": [
+              "safe_transfer_from",
+              "safeTransferFrom"
+            ],
+            "approve": [
+              "approve"
+            ],
+            "get_approved": [
+              "get_approved",
+              "getApproved"
+            ],
+            "is_approved_for_all": [
+              "is_approved_for_all",
+              "isApprovedForAll"
+            ],
+            "supports_interface": [
+              "supports_interface"
+            ]
+          },
+          "proxyEvidence": [],
+          "projectionDigest": "09ceec52217f83e842a79a93a0c24da7039a280d35e5fed6bae418ed8114b27c"
+        }
+      }
+    },
+    {
+      "name": "realms-mint-1830",
+      "collection": "0x07ae27a31bb6526e3de9cf02f081f6ce0615ac12a6d7b85ee58b8ad7947a2809",
+      "tokenId": "1830",
+      "expectedOwner": "0x037c6b561b367a85b68668e8663041b9e2f4199c346fbda97dc0c2167f7a6016",
+      "transactionHash": "0x9a9bc087dd983f1cc1bc0cfa8079aeecf17dd93a2ac1179fdd14474cdcd6ec",
+      "transactionIndex": 225,
+      "eventIndex": 0,
+      "receiptMatches": true,
+      "classIdentityMatches": true,
+      "abiIdentityMatches": true,
+      "logicalRpcCalls": 7,
+      "ok": true,
+      "reconciliation": {
+        "state": "matched",
+        "ok": true,
+        "confidence": "partial",
+        "checked": 1,
+        "projectedCount": "1",
+        "mismatches": [],
+        "errors": [],
+        "limitations": [
+          "total_supply_unavailable",
+          "enumeration_unavailable"
+        ],
+        "block": 665018,
+        "hash": "0x7f5ff53119028c493b12ddcf4f5b8065c8f2060a8546697a2f9274409389463",
+        "replayGeneration": 1,
+        "observedAt": 1791611126853,
+        "supply": null,
+        "provenance": {
+          "source": "direct_rpc",
+          "chainId": "0x534e5f4d41494e",
+          "classHash": "0x42731c2355af9d59eda314ea3cca49ea3cc85173b2ca3c35c6c9df1c087cc43",
+          "implementationClassHash": null,
+          "blockId": {
+            "block_hash": "0x7f5ff53119028c493b12ddcf4f5b8065c8f2060a8546697a2f9274409389463"
+          },
+          "aliases": {
+            "balance_of": [
+              "balance_of",
+              "balanceOf"
+            ],
+            "owner_of": [
+              "owner_of",
+              "ownerOf"
+            ],
+            "token_uri": [
+              "token_uri",
+              "tokenURI"
+            ],
+            "transfer_from": [
+              "transfer_from",
+              "transferFrom"
+            ],
+            "safe_transfer_from": [
+              "safe_transfer_from",
+              "safeTransferFrom"
+            ],
+            "approve": [
+              "approve"
+            ],
+            "get_approved": [
+              "get_approved",
+              "getApproved"
+            ],
+            "is_approved_for_all": [
+              "is_approved_for_all",
+              "isApprovedForAll"
+            ],
+            "supports_interface": [
+              "supports_interface"
+            ]
+          },
+          "proxyEvidence": [],
+          "projectionDigest": "f13b9733c4e19c71ad3852020da426b17eae1cf00f58ae0c9b89b95e6dce1e1d"
+        }
+      }
+    },
+    {
+      "name": "realms-mint-1101",
+      "collection": "0x07ae27a31bb6526e3de9cf02f081f6ce0615ac12a6d7b85ee58b8ad7947a2809",
+      "tokenId": "1101",
+      "expectedOwner": "0x05b0a0def8c8eea7c4b1002502386c067d218d95a8346b0842f7b8cd53447201",
+      "transactionHash": "0x370db5fc80f7f2f48083406d10cf12c4c90a12ce663152fcdf4c03d053af59f",
+      "transactionIndex": 147,
+      "eventIndex": 0,
+      "receiptMatches": true,
+      "classIdentityMatches": true,
+      "abiIdentityMatches": true,
+      "logicalRpcCalls": 7,
+      "ok": true,
+      "reconciliation": {
+        "state": "matched",
+        "ok": true,
+        "confidence": "partial",
+        "checked": 1,
+        "projectedCount": "1",
+        "mismatches": [],
+        "errors": [],
+        "limitations": [
+          "total_supply_unavailable",
+          "enumeration_unavailable"
+        ],
+        "block": 665025,
+        "hash": "0x21037d220f5dbbb005b77600d2666470c1ecfb9cccb016292e79614d60bb4a6",
+        "replayGeneration": 1,
+        "observedAt": 1791611127584,
+        "supply": null,
+        "provenance": {
+          "source": "direct_rpc",
+          "chainId": "0x534e5f4d41494e",
+          "classHash": "0x42731c2355af9d59eda314ea3cca49ea3cc85173b2ca3c35c6c9df1c087cc43",
+          "implementationClassHash": null,
+          "blockId": {
+            "block_hash": "0x21037d220f5dbbb005b77600d2666470c1ecfb9cccb016292e79614d60bb4a6"
+          },
+          "aliases": {
+            "balance_of": [
+              "balance_of",
+              "balanceOf"
+            ],
+            "owner_of": [
+              "owner_of",
+              "ownerOf"
+            ],
+            "token_uri": [
+              "token_uri",
+              "tokenURI"
+            ],
+            "transfer_from": [
+              "transfer_from",
+              "transferFrom"
+            ],
+            "safe_transfer_from": [
+              "safe_transfer_from",
+              "safeTransferFrom"
+            ],
+            "approve": [
+              "approve"
+            ],
+            "get_approved": [
+              "get_approved",
+              "getApproved"
+            ],
+            "is_approved_for_all": [
+              "is_approved_for_all",
+              "isApprovedForAll"
+            ],
+            "supports_interface": [
+              "supports_interface"
+            ]
+          },
+          "proxyEvidence": [],
+          "projectionDigest": "8b10f0b5b867e9a77a1714d5ebfa50a135a1e983a93e57fe4a4df7a561dc66bc"
+        }
+      }
+    }
+  ],
+  "negativeControl": {
+    "collection": "0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
+    "block": 10708,
+    "hash": "0x145a23480a00e316b9f29f57064f0580e0a7c95e828f9bab3060ec8ede370c0",
+    "receiptMatches": true,
+    "classHash": "0xd0e183745e9dae3e4e78a8ffedcce0903fc4900beace4e0abf192d4c202da3",
+    "implementationClassHash": "0x2760f25d5a4fb2bdde5f561fd0b44a3dee78c28903577d37d669939d97036a0",
+    "classification": {
+      "standard": null,
+      "method": "proxy_abi",
+      "classification": {
+        "standard": "ERC20",
+        "method": "proxy_abi",
+        "classHash": "0xd0e183745e9dae3e4e78a8ffedcce0903fc4900beace4e0abf192d4c202da3",
+        "implementation": "0x048624e084dc68d82076582219c7ed8cb0910c01746cca3cd72a28ecfe07e42d",
+        "uncertainty": "fungible",
+        "evidence": [
+          {
+            "kind": "no_introspection",
+            "note": "ABI does not declare supports_interface; only ABI markers applied"
+          },
+          {
+            "kind": "proxy_implementation",
+            "adapter": "implementation-getter.v1",
+            "method": "implementation",
+            "blockId": {
+              "block_hash": "0x145a23480a00e316b9f29f57064f0580e0a7c95e828f9bab3060ec8ede370c0"
+            },
+            "proxyClassHash": "0xd0e183745e9dae3e4e78a8ffedcce0903fc4900beace4e0abf192d4c202da3",
+            "implementationClassHash": "0x2760f25d5a4fb2bdde5f561fd0b44a3dee78c28903577d37d669939d97036a0",
+            "resolved": true
+          },
+          {
+            "kind": "fungible_markers",
+            "markers": [
+              "decimals",
+              "symbol",
+              "name",
+              "transfer",
+              "allowance"
+            ]
+          }
+        ],
+        "aliases": {},
+        "eventLayouts": {
+          "Transfer": {
+            "keys": 0,
+            "data": 3
+          },
+          "Approval": {
+            "keys": 0,
+            "data": 3
+          }
+        },
+        "evidenceBlock": 10708,
+        "evidenceBlockHash": "0x145a23480a00e316b9f29f57064f0580e0a7c95e828f9bab3060ec8ede370c0",
+        "implementationClassHash": "0x2760f25d5a4fb2bdde5f561fd0b44a3dee78c28903577d37d669939d97036a0"
+      }
+    },
+    "decoderRejected": true,
+    "decoderCode": "INVALID_EVENT",
+    "operatorReason": "fungible",
+    "logicalRpcCalls": 6,
+    "ok": true,
+    "abiIdentityMatches": true
+  },
+  "observations": [
+    {
+      "method": "starknet_getTransactionReceipt",
+      "params": {
+        "transaction_hash": "0x595ba40ff386dee1514da6d64f348b0d950329b4188b30d4c6e1838c2527851"
+      },
+      "elapsedMs": 189.951,
+      "resultSha256": "fae50bc831c19943e6a8ff3fa1671fcf4dd909698b969c36bfce13a3124ef2bc",
+      "resultBytes": 3583,
+      "receiptEventCount": 8
+    },
+    {
+      "method": "starknet_getBlockWithTxHashes",
+      "params": {
+        "block_id": {
+          "block_hash": "0x145a23480a00e316b9f29f57064f0580e0a7c95e828f9bab3060ec8ede370c0"
+        }
+      },
+      "elapsedMs": 60.773,
+      "resultSha256": "a305cd81d0794c58d5b3b71ae491a4ab3b9ba8d2f7170de3bf3c3f69fc017c9e",
+      "resultBytes": 2931,
+      "resultProjection": {
+        "block_number": 10708,
+        "block_hash": "0x145a23480a00e316b9f29f57064f0580e0a7c95e828f9bab3060ec8ede370c0",
+        "parent_hash": "0x3f9062f3b1f31bc752c263ff8a091d024f1186d1a8de03ccfbb7461ba48aa2e",
+        "timestamp": 1669115906,
+        "status": "ACCEPTED_ON_L1",
+        "transactionCount": 29
+      }
+    },
+    {
+      "method": "starknet_chainId",
+      "params": {},
+      "elapsedMs": 60.292,
+      "resultSha256": "d49007d4402c13cdb5d6e1e5b96ef8eed5a969c31262b7f9302ebbb3f624b058",
+      "resultBytes": 18,
+      "result": "0x534e5f4d41494e"
+    },
+    {
+      "method": "starknet_getBlockWithTxHashes",
+      "params": {
+        "block_id": {
+          "block_hash": "0x145a23480a00e316b9f29f57064f0580e0a7c95e828f9bab3060ec8ede370c0"
+        }
+      },
+      "elapsedMs": 53.61,
+      "resultSha256": "a305cd81d0794c58d5b3b71ae491a4ab3b9ba8d2f7170de3bf3c3f69fc017c9e",
+      "resultBytes": 2931,
+      "resultProjection": {
+        "block_number": 10708,
+        "block_hash": "0x145a23480a00e316b9f29f57064f0580e0a7c95e828f9bab3060ec8ede370c0",
+        "parent_hash": "0x3f9062f3b1f31bc752c263ff8a091d024f1186d1a8de03ccfbb7461ba48aa2e",
+        "timestamp": 1669115906,
+        "status": "ACCEPTED_ON_L1",
+        "transactionCount": 29
+      }
+    },
+    {
+      "method": "starknet_getClassHashAt",
+      "params": {
+        "block_id": {
+          "block_hash": "0x145a23480a00e316b9f29f57064f0580e0a7c95e828f9bab3060ec8ede370c0"
+        },
+        "contract_address": "0x01435498bf393da86b4733b9264a86b58a42b31f8d8b8ba309593e5c17847672"
+      },
+      "elapsedMs": 123.593,
+      "resultSha256": "544473c86e967a11edc9c24b9ff1d918105bbc358cde3dabce19fcd90fa00990",
+      "resultBytes": 67,
+      "result": "0x71429d7850e4421236ed7e4f58b7778fc0e0c01b8770335ba4140bcb13733e9"
+    },
+    {
+      "method": "starknet_getClass",
+      "params": {
+        "class_hash": "0x71429d7850e4421236ed7e4f58b7778fc0e0c01b8770335ba4140bcb13733e9",
+        "block_id": {
+          "block_hash": "0x145a23480a00e316b9f29f57064f0580e0a7c95e828f9bab3060ec8ede370c0"
+        }
+      },
+      "elapsedMs": 71.322,
+      "resultSha256": "cdd228f9bba5d6dc0e1385570566f6f3648986aee8c4221784e9e1d8b1202d58",
+      "resultBytes": 9394,
+      "abiSha256": "852953dab48817454343db27a4dea84a42c71a6eb83632bef57745e9102d1cf4",
+      "frozenAbiMatches": true
+    },
+    {
+      "method": "starknet_getStorageAt",
+      "params": {
+        "contract_address": "0x01435498bf393da86b4733b9264a86b58a42b31f8d8b8ba309593e5c17847672",
+        "key": "0x3f1abe37754ee6ca6d8dfa1036089f78a07ebe8f3b1e336cdbf3274d25becd0",
+        "block_id": {
+          "block_hash": "0x145a23480a00e316b9f29f57064f0580e0a7c95e828f9bab3060ec8ede370c0"
+        }
+      },
+      "elapsedMs": 64.834,
+      "resultSha256": "27cb069ea6b29c2040b7cd11700fdc4804bd427de6599af214d6b25703059625",
+      "resultBytes": 67,
+      "result": "0x737075858b01863de9f079aaf45e2a8677eed1b9e7601464957bac0a73dc289"
+    },
+    {
+      "method": "starknet_getClass",
+      "params": {
+        "class_hash": "0x737075858b01863de9f079aaf45e2a8677eed1b9e7601464957bac0a73dc289",
+        "block_id": {
+          "block_hash": "0x145a23480a00e316b9f29f57064f0580e0a7c95e828f9bab3060ec8ede370c0"
+        }
+      },
+      "elapsedMs": 71.434,
+      "resultSha256": "05fe69d59899d47916f08f1a2e69d6e2b87f36959827fa3efd902a34de7b182f",
+      "resultBytes": 48770,
+      "abiSha256": "1030657d7fdc5a443aa2ffc49615740569ebfcbb8788e7fbce78886ca89fbe8a",
+      "frozenAbiMatches": true
+    },
+    {
+      "method": "starknet_call",
+      "params": {
+        "request": {
+          "contract_address": "0x01435498bf393da86b4733b9264a86b58a42b31f8d8b8ba309593e5c17847672",
+          "entry_point_selector": "0x2962ba17806af798afa6eaf4aa8c93a9fb60a3e305045b6eea33435086cae9",
+          "calldata": [
+            "0x3a1f246fbfb37d41e000000000000000",
+            "0x70da59be2c1a9089bc62b919b8948c4"
+          ]
+        },
+        "block_id": {
+          "block_hash": "0x145a23480a00e316b9f29f57064f0580e0a7c95e828f9bab3060ec8ede370c0"
+        }
+      },
+      "elapsedMs": 62.364,
+      "resultSha256": "4aff81b5857877e26cddd615d74b1c2e2e76782742b1b4b8826d1ec86535cb9c",
+      "resultBytes": 67,
+      "result": [
+        "0x4b6767aea46adba81b673177c30dcad9cfc719aaf6487c03f8319389a1548"
+      ]
+    },
+    {
+      "method": "starknet_getTransactionReceipt",
+      "params": {
+        "transaction_hash": "0x519a0257d1b09b255324dac34aab3f5e01a9a88a73cef02a0c9084881892eb8"
+      },
+      "elapsedMs": 57.48,
+      "resultSha256": "edb5d30d63dfcdce0a972bddda6115ac9ac3c4015cb5c18d94d790069a709c4e",
+      "resultBytes": 1220,
+      "receiptEventCount": 2
+    },
+    {
+      "method": "starknet_getBlockWithTxHashes",
+      "params": {
+        "block_id": {
+          "block_hash": "0x4448c28cfe9ea9928884b355c37b260da14a524db47a250a945c71bfb2a4ec4"
+        }
+      },
+      "elapsedMs": 65.147,
+      "resultSha256": "f7e3713473100372e5d62f2c070a87705bc80ac734defb692de35bf3f90f8f8a",
+      "resultBytes": 20733,
+      "resultProjection": {
+        "block_number": 664768,
+        "block_hash": "0x4448c28cfe9ea9928884b355c37b260da14a524db47a250a945c71bfb2a4ec4",
+        "parent_hash": "0x6fbcf0ea28f62835c058e81e81485016b46e4c09b727bb4a116a2b12fccf0e",
+        "timestamp": 1722658682,
+        "status": "ACCEPTED_ON_L1",
+        "transactionCount": 291
+      }
+    },
+    {
+      "method": "starknet_chainId",
+      "params": {},
+      "elapsedMs": 54.046,
+      "resultSha256": "d49007d4402c13cdb5d6e1e5b96ef8eed5a969c31262b7f9302ebbb3f624b058",
+      "resultBytes": 18,
+      "result": "0x534e5f4d41494e"
+    },
+    {
+      "method": "starknet_getBlockWithTxHashes",
+      "params": {
+        "block_id": {
+          "block_hash": "0x4448c28cfe9ea9928884b355c37b260da14a524db47a250a945c71bfb2a4ec4"
+        }
+      },
+      "elapsedMs": 63.964,
+      "resultSha256": "f7e3713473100372e5d62f2c070a87705bc80ac734defb692de35bf3f90f8f8a",
+      "resultBytes": 20733,
+      "resultProjection": {
+        "block_number": 664768,
+        "block_hash": "0x4448c28cfe9ea9928884b355c37b260da14a524db47a250a945c71bfb2a4ec4",
+        "parent_hash": "0x6fbcf0ea28f62835c058e81e81485016b46e4c09b727bb4a116a2b12fccf0e",
+        "timestamp": 1722658682,
+        "status": "ACCEPTED_ON_L1",
+        "transactionCount": 291
+      }
+    },
+    {
+      "method": "starknet_getClassHashAt",
+      "params": {
+        "block_id": {
+          "block_hash": "0x4448c28cfe9ea9928884b355c37b260da14a524db47a250a945c71bfb2a4ec4"
+        },
+        "contract_address": "0x07ae27a31bb6526e3de9cf02f081f6ce0615ac12a6d7b85ee58b8ad7947a2809"
+      },
+      "elapsedMs": 56.992,
+      "resultSha256": "313bfab4288f07f26c422d3e827de685b95d0850e60df79f4ebcedffd1483f3a",
+      "resultBytes": 67,
+      "result": "0x42731c2355af9d59eda314ea3cca49ea3cc85173b2ca3c35c6c9df1c087cc43"
+    },
+    {
+      "method": "starknet_getClass",
+      "params": {
+        "class_hash": "0x42731c2355af9d59eda314ea3cca49ea3cc85173b2ca3c35c6c9df1c087cc43",
+        "block_id": {
+          "block_hash": "0x4448c28cfe9ea9928884b355c37b260da14a524db47a250a945c71bfb2a4ec4"
+        }
+      },
+      "elapsedMs": 132.368,
+      "resultSha256": "914a2c76ce8b08fa89c7958c19a0fa23097ca1ad4204cfaaa71107a077acec96",
+      "resultBytes": 714192,
+      "abiSha256": "44994f1ebe6a8c2fc7d15adcb03f57571a69d4b2b79a387fb22182348b7edf9c",
+      "frozenAbiMatches": true
+    },
+    {
+      "method": "starknet_call",
+      "params": {
+        "request": {
+          "contract_address": "0x07ae27a31bb6526e3de9cf02f081f6ce0615ac12a6d7b85ee58b8ad7947a2809",
+          "entry_point_selector": "0x3552df12bdc6089cf963c40c4cf56fbfd4bd14680c244d1c5494c2790f1ea5c",
+          "calldata": [
+            "0x40e",
+            "0x0"
+          ]
+        },
+        "block_id": {
+          "block_hash": "0x4448c28cfe9ea9928884b355c37b260da14a524db47a250a945c71bfb2a4ec4"
+        }
+      },
+      "elapsedMs": 56.152,
+      "resultSha256": "73abed3a43d952b25774e94079a57fa2c63f6729d55b387a7a5aed8b6a5e7c5b",
+      "resultBytes": 69,
+      "result": [
+        "0x74c2664cfc8aff6b1e24befa444488f89a060f9a58550cd5ef1f9c4809a80c3"
+      ]
+    },
+    {
+      "method": "starknet_getTransactionReceipt",
+      "params": {
+        "transaction_hash": "0x9a9bc087dd983f1cc1bc0cfa8079aeecf17dd93a2ac1179fdd14474cdcd6ec"
+      },
+      "elapsedMs": 69.691,
+      "resultSha256": "ec03be98a2d50f1011a33c707ea382669475e7bd15584ae3dc0b517cbef8d05a",
+      "resultBytes": 1217,
+      "receiptEventCount": 2
+    },
+    {
+      "method": "starknet_getBlockWithTxHashes",
+      "params": {
+        "block_id": {
+          "block_hash": "0x7f5ff53119028c493b12ddcf4f5b8065c8f2060a8546697a2f9274409389463"
+        }
+      },
+      "elapsedMs": 90.584,
+      "resultSha256": "84e83919f54eb1bd7e51ef702313bc859636bea64d2ae04aa9a883f702a56916",
+      "resultBytes": 21810,
+      "resultProjection": {
+        "block_number": 665018,
+        "block_hash": "0x7f5ff53119028c493b12ddcf4f5b8065c8f2060a8546697a2f9274409389463",
+        "parent_hash": "0x442395c072915ff19e440db614ce0730c8f56c386d3b551da48f0651ee7eabc",
+        "timestamp": 1722726325,
+        "status": "ACCEPTED_ON_L1",
+        "transactionCount": 307
+      }
+    },
+    {
+      "method": "starknet_chainId",
+      "params": {},
+      "elapsedMs": 55.505,
+      "resultSha256": "d49007d4402c13cdb5d6e1e5b96ef8eed5a969c31262b7f9302ebbb3f624b058",
+      "resultBytes": 18,
+      "result": "0x534e5f4d41494e"
+    },
+    {
+      "method": "starknet_getBlockWithTxHashes",
+      "params": {
+        "block_id": {
+          "block_hash": "0x7f5ff53119028c493b12ddcf4f5b8065c8f2060a8546697a2f9274409389463"
+        }
+      },
+      "elapsedMs": 93.489,
+      "resultSha256": "84e83919f54eb1bd7e51ef702313bc859636bea64d2ae04aa9a883f702a56916",
+      "resultBytes": 21810,
+      "resultProjection": {
+        "block_number": 665018,
+        "block_hash": "0x7f5ff53119028c493b12ddcf4f5b8065c8f2060a8546697a2f9274409389463",
+        "parent_hash": "0x442395c072915ff19e440db614ce0730c8f56c386d3b551da48f0651ee7eabc",
+        "timestamp": 1722726325,
+        "status": "ACCEPTED_ON_L1",
+        "transactionCount": 307
+      }
+    },
+    {
+      "method": "starknet_getClassHashAt",
+      "params": {
+        "block_id": {
+          "block_hash": "0x7f5ff53119028c493b12ddcf4f5b8065c8f2060a8546697a2f9274409389463"
+        },
+        "contract_address": "0x07ae27a31bb6526e3de9cf02f081f6ce0615ac12a6d7b85ee58b8ad7947a2809"
+      },
+      "elapsedMs": 81.102,
+      "resultSha256": "313bfab4288f07f26c422d3e827de685b95d0850e60df79f4ebcedffd1483f3a",
+      "resultBytes": 67,
+      "result": "0x42731c2355af9d59eda314ea3cca49ea3cc85173b2ca3c35c6c9df1c087cc43"
+    },
+    {
+      "method": "starknet_getClass",
+      "params": {
+        "class_hash": "0x42731c2355af9d59eda314ea3cca49ea3cc85173b2ca3c35c6c9df1c087cc43",
+        "block_id": {
+          "block_hash": "0x7f5ff53119028c493b12ddcf4f5b8065c8f2060a8546697a2f9274409389463"
+        }
+      },
+      "elapsedMs": 287.238,
+      "resultSha256": "914a2c76ce8b08fa89c7958c19a0fa23097ca1ad4204cfaaa71107a077acec96",
+      "resultBytes": 714192,
+      "abiSha256": "44994f1ebe6a8c2fc7d15adcb03f57571a69d4b2b79a387fb22182348b7edf9c",
+      "frozenAbiMatches": true
+    },
+    {
+      "method": "starknet_call",
+      "params": {
+        "request": {
+          "contract_address": "0x07ae27a31bb6526e3de9cf02f081f6ce0615ac12a6d7b85ee58b8ad7947a2809",
+          "entry_point_selector": "0x3552df12bdc6089cf963c40c4cf56fbfd4bd14680c244d1c5494c2790f1ea5c",
+          "calldata": [
+            "0x726",
+            "0x0"
+          ]
+        },
+        "block_id": {
+          "block_hash": "0x7f5ff53119028c493b12ddcf4f5b8065c8f2060a8546697a2f9274409389463"
+        }
+      },
+      "elapsedMs": 60.219,
+      "resultSha256": "a04285e4eff94096a9c0d634abcf60654882a8651855f093c2ab34318462a8d3",
+      "resultBytes": 69,
+      "result": [
+        "0x37c6b561b367a85b68668e8663041b9e2f4199c346fbda97dc0c2167f7a6016"
+      ]
+    },
+    {
+      "method": "starknet_getTransactionReceipt",
+      "params": {
+        "transaction_hash": "0x370db5fc80f7f2f48083406d10cf12c4c90a12ce663152fcdf4c03d053af59f"
+      },
+      "elapsedMs": 71.609,
+      "resultSha256": "ec01784831094eac0251de2433b92b0d3dfbec0df9bdd4f6a5ac8e9871e5e80c",
+      "resultBytes": 1220,
+      "receiptEventCount": 2
+    },
+    {
+      "method": "starknet_getBlockWithTxHashes",
+      "params": {
+        "block_id": {
+          "block_hash": "0x21037d220f5dbbb005b77600d2666470c1ecfb9cccb016292e79614d60bb4a6"
+        }
+      },
+      "elapsedMs": 70.017,
+      "resultSha256": "888be2396aaf5a30010eb6790f6c6ab9e773d8941379e04de6aa22409a657d62",
+      "resultBytes": 13329,
+      "resultProjection": {
+        "block_number": 665025,
+        "block_hash": "0x21037d220f5dbbb005b77600d2666470c1ecfb9cccb016292e79614d60bb4a6",
+        "parent_hash": "0x41e33ffebe19fa5d58902f89f1537b9770b0005700f826467a2106f07b392db",
+        "timestamp": 1722728562,
+        "status": "ACCEPTED_ON_L1",
+        "transactionCount": 182
+      }
+    },
+    {
+      "method": "starknet_chainId",
+      "params": {},
+      "elapsedMs": 60.805,
+      "resultSha256": "d49007d4402c13cdb5d6e1e5b96ef8eed5a969c31262b7f9302ebbb3f624b058",
+      "resultBytes": 18,
+      "result": "0x534e5f4d41494e"
+    },
+    {
+      "method": "starknet_getBlockWithTxHashes",
+      "params": {
+        "block_id": {
+          "block_hash": "0x21037d220f5dbbb005b77600d2666470c1ecfb9cccb016292e79614d60bb4a6"
+        }
+      },
+      "elapsedMs": 55.158,
+      "resultSha256": "888be2396aaf5a30010eb6790f6c6ab9e773d8941379e04de6aa22409a657d62",
+      "resultBytes": 13329,
+      "resultProjection": {
+        "block_number": 665025,
+        "block_hash": "0x21037d220f5dbbb005b77600d2666470c1ecfb9cccb016292e79614d60bb4a6",
+        "parent_hash": "0x41e33ffebe19fa5d58902f89f1537b9770b0005700f826467a2106f07b392db",
+        "timestamp": 1722728562,
+        "status": "ACCEPTED_ON_L1",
+        "transactionCount": 182
+      }
+    },
+    {
+      "method": "starknet_getClassHashAt",
+      "params": {
+        "block_id": {
+          "block_hash": "0x21037d220f5dbbb005b77600d2666470c1ecfb9cccb016292e79614d60bb4a6"
+        },
+        "contract_address": "0x07ae27a31bb6526e3de9cf02f081f6ce0615ac12a6d7b85ee58b8ad7947a2809"
+      },
+      "elapsedMs": 58.222,
+      "resultSha256": "313bfab4288f07f26c422d3e827de685b95d0850e60df79f4ebcedffd1483f3a",
+      "resultBytes": 67,
+      "result": "0x42731c2355af9d59eda314ea3cca49ea3cc85173b2ca3c35c6c9df1c087cc43"
+    },
+    {
+      "method": "starknet_getClass",
+      "params": {
+        "class_hash": "0x42731c2355af9d59eda314ea3cca49ea3cc85173b2ca3c35c6c9df1c087cc43",
+        "block_id": {
+          "block_hash": "0x21037d220f5dbbb005b77600d2666470c1ecfb9cccb016292e79614d60bb4a6"
+        }
+      },
+      "elapsedMs": 105.603,
+      "resultSha256": "914a2c76ce8b08fa89c7958c19a0fa23097ca1ad4204cfaaa71107a077acec96",
+      "resultBytes": 714192,
+      "abiSha256": "44994f1ebe6a8c2fc7d15adcb03f57571a69d4b2b79a387fb22182348b7edf9c",
+      "frozenAbiMatches": true
+    },
+    {
+      "method": "starknet_call",
+      "params": {
+        "request": {
+          "contract_address": "0x07ae27a31bb6526e3de9cf02f081f6ce0615ac12a6d7b85ee58b8ad7947a2809",
+          "entry_point_selector": "0x3552df12bdc6089cf963c40c4cf56fbfd4bd14680c244d1c5494c2790f1ea5c",
+          "calldata": [
+            "0x44d",
+            "0x0"
+          ]
+        },
+        "block_id": {
+          "block_hash": "0x21037d220f5dbbb005b77600d2666470c1ecfb9cccb016292e79614d60bb4a6"
+        }
+      },
+      "elapsedMs": 55.656,
+      "resultSha256": "8b38542c8f66f047897d30b7093c39ec602bcb38926bd843d57ee6fb47df7ab8",
+      "resultBytes": 69,
+      "result": [
+        "0x5b0a0def8c8eea7c4b1002502386c067d218d95a8346b0842f7b8cd53447201"
+      ]
+    },
+    {
+      "method": "starknet_getTransactionReceipt",
+      "params": {
+        "transaction_hash": "0x595ba40ff386dee1514da6d64f348b0d950329b4188b30d4c6e1838c2527851"
+      },
+      "elapsedMs": 58.045,
+      "resultSha256": "fae50bc831c19943e6a8ff3fa1671fcf4dd909698b969c36bfce13a3124ef2bc",
+      "resultBytes": 3583,
+      "receiptEventCount": 8
+    },
+    {
+      "method": "starknet_getClassHashAt",
+      "params": {
+        "contract_address": "0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
+        "block_id": {
+          "block_hash": "0x145a23480a00e316b9f29f57064f0580e0a7c95e828f9bab3060ec8ede370c0"
+        }
+      },
+      "elapsedMs": 56.57,
+      "resultSha256": "ff88e236a834dfcfbb1692b47ef21353f4bd56e267b15ece6cc206d00421af76",
+      "resultBytes": 66,
+      "result": "0xd0e183745e9dae3e4e78a8ffedcce0903fc4900beace4e0abf192d4c202da3"
+    },
+    {
+      "method": "starknet_getClass",
+      "params": {
+        "class_hash": "0xd0e183745e9dae3e4e78a8ffedcce0903fc4900beace4e0abf192d4c202da3",
+        "block_id": {
+          "block_hash": "0x145a23480a00e316b9f29f57064f0580e0a7c95e828f9bab3060ec8ede370c0"
+        }
+      },
+      "elapsedMs": 64.634,
+      "resultSha256": "fa33d0b428833db04d696bc8c9ac02894f6a498f4a81a80b5fd52e0f08230e06",
+      "resultBytes": 59691,
+      "abiSha256": "a4e2e256a605593f57ba551b8fbe061bccdb8059394a97a44a57c27d92d55fe6",
+      "frozenAbiMatches": true
+    },
+    {
+      "method": "starknet_call",
+      "params": {
+        "request": {
+          "contract_address": "0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
+          "entry_point_selector": "0x3a0ed1f62da1d3048614c2c1feb566f041c8467eb00fb8294776a9179dc1643",
+          "calldata": []
+        },
+        "block_id": {
+          "block_hash": "0x145a23480a00e316b9f29f57064f0580e0a7c95e828f9bab3060ec8ede370c0"
+        }
+      },
+      "elapsedMs": 61.98,
+      "resultSha256": "7b3d4901d83d49cfc8f4a14ab3bb06184c88f81a398d90d76da3054570bd3137",
+      "resultBytes": 69,
+      "result": [
+        "0x48624e084dc68d82076582219c7ed8cb0910c01746cca3cd72a28ecfe07e42d"
+      ]
+    },
+    {
+      "method": "starknet_getClassHashAt",
+      "params": {
+        "contract_address": "0x048624e084dc68d82076582219c7ed8cb0910c01746cca3cd72a28ecfe07e42d",
+        "block_id": {
+          "block_hash": "0x145a23480a00e316b9f29f57064f0580e0a7c95e828f9bab3060ec8ede370c0"
+        }
+      },
+      "elapsedMs": 58.339,
+      "resultSha256": "b8c03f39af450911ffc35e879d384da26aa3011a799cdc8768f2dd4056a4a338",
+      "resultBytes": 67,
+      "result": "0x2760f25d5a4fb2bdde5f561fd0b44a3dee78c28903577d37d669939d97036a0"
+    },
+    {
+      "method": "starknet_getClass",
+      "params": {
+        "class_hash": "0x2760f25d5a4fb2bdde5f561fd0b44a3dee78c28903577d37d669939d97036a0",
+        "block_id": {
+          "block_hash": "0x145a23480a00e316b9f29f57064f0580e0a7c95e828f9bab3060ec8ede370c0"
+        }
+      },
+      "elapsedMs": 64.748,
+      "resultSha256": "a2a434f9fe01c7b5d035101d0374a064552a376b38817f7d009c53726e6ab2fe",
+      "resultBytes": 24416,
+      "abiSha256": "d7ee6795e63bf40b2ec6556734d53048250277444f1dda8f00b09935411215b9",
+      "frozenAbiMatches": true
+    }
+  ],
+  "limitations": [
+    "This sample does not reconstruct any collection's full history",
+    "Briq and Realms ABIs do not expose NFT total supply or token enumeration",
+    "No production database or collection policy is changed"
+  ]
+}

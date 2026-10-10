@@ -35,3 +35,15 @@ export function discoveryOptions(env = process.env) {
     maxRewind: read("MARKETPLACE_DISCOVERY_MAX_REWIND", 100, 10000),
   };
 }
+
+/** One writer interleaves enrichment with live indexing; work is bounded per cycle. */
+export function catalogOptions(env = process.env) {
+  const read = integerReader(env);
+  return {
+    live: indexerOptions({ ...env, MARKETPLACE_INDEX_WINDOW: env.MARKETPLACE_INDEX_WINDOW ?? '16', MARKETPLACE_INDEX_FAST_HISTORY: 'false' }),
+    discovery: discoveryOptions({ ...env, MARKETPLACE_DISCOVERY_SPAN: env.MARKETPLACE_DISCOVERY_SPAN ?? '16', MARKETPLACE_DISCOVERY_EMITTERS: env.MARKETPLACE_DISCOVERY_EMITTERS ?? 'false' }),
+    classify: { limit: read('MARKETPLACE_CATALOG_CLASSIFY_LIMIT', 8, 500), concurrency: read('MARKETPLACE_CATALOG_CLASSIFY_CONCURRENCY', 2, 32) },
+    backfill: { window: read('MARKETPLACE_CATALOG_BACKFILL_WINDOW', 4, 1000) },
+    queueLimit: read('MARKETPLACE_CATALOG_QUEUE_LIMIT', 8, 100),
+  };
+}

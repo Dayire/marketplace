@@ -21,14 +21,14 @@ describe("marketplace seo data server-safe imports", () => {
       throw new TypeError("(0 , g.createContext) is not a function");
     });
 
-    const { getCollectionSeoData } = await import("@/lib/marketplace/seo-data");
-    const result = await getCollectionSeoData("0xabc");
+    const { getCollectionShareData } = await import("@/lib/marketplace/seo-data");
+    const result = await getCollectionShareData("0xabc");
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       exists: false,
       name: "Genesis",
       description: null,
-      image: null,
+      floor: null,
     });
   });
 });

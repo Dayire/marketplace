@@ -1,0 +1,1348 @@
+{
+  "reviewedAt": "2026-10-10T05:55:24.454565+00:00",
+  "scope": "Read-only public mainnet data, isolated local PostgreSQL experiments and labeled fixtures; no production deployment or trades",
+  "sourceShas": {
+    "dated_main": "561d94538c794f48ea12ae41617aa6dc8af53432",
+    "pr122": "a03ff136c351ed931ad96a9fd7dd17e6c93696e5",
+    "current_main": "9b65018cbd804c3ae722587ccca3826b8c820a48",
+    "intermediate": "a1805a4639493777706ab9f68f612bc8c3838a64",
+    "final": "6a5caf2db4b8a72d411ad7c7e8b61345fc65e43a"
+  },
+  "finalCandidate": "6a5caf2db4b8a72d411ad7c7e8b61345fc65e43a",
+  "currentMainSnapshot": "9b65018cbd804c3ae722587ccca3826b8c820a48",
+  "publicRpc": "https://starknet-rpc.publicnode.com",
+  "rpcSpecVersionObserved": "0.10.3",
+  "captures": {
+    "eventful": {
+      "requests": 118,
+      "requestBytes": 14064,
+      "decodedResponseBytes": 104394770,
+      "timingMs": {
+        "count": 118,
+        "min": 50.28962499999943,
+        "median": 104.43970800000079,
+        "p95": 189.63595800000007,
+        "max": 270.9090839999999,
+        "total": 12330.197294000001
+      },
+      "rateLimitedResponses": 0,
+      "errors": 0
+    },
+    "live": {
+      "requests": 51,
+      "decodedResponseBytes": 148179,
+      "rateLimitedResponses": 0,
+      "timingMs": {
+        "count": 51,
+        "min": 50.96241700000064,
+        "median": 60.90312499999982,
+        "p95": 135.66866699999997,
+        "max": 237.965042,
+        "total": 3513.699209999997
+      }
+    },
+    "publicFourIntermediate": {
+      "at": "2026-10-10T05:47:36.341Z",
+      "output": "<evidence-packet>/public-four-1791611255899",
+      "sha": "a1805a4639493777706ab9f68f612bc8c3838a64",
+      "from": 664768,
+      "to": 664771,
+      "endpoint": "https://starknet-rpc.publicnode.com",
+      "realNetworkAndPostgres": true,
+      "partialHistory": true,
+      "noTransactionsSubmitted": true,
+      "scan": {
+        "indexed": 664771,
+        "head": 16160624,
+        "blocks": 4,
+        "receiptBlocks": 4,
+        "mode": "full_receipts",
+        "events": 3,
+        "elapsedMs": 2358,
+        "acquireMs": 2124,
+        "rateLimitedResponses": 0,
+        "commitMs": 234,
+        "blocksPerSecond": 1.7,
+        "eventScans": 16,
+        "unknownEmitters": 306,
+        "candidatesCreated": 306,
+        "malformedEmitters": 0
+      },
+      "cycleMs": 2358.754208,
+      "boundary": {
+        "before": "0x21b7d0e9d94a3c914bb7ce13e7d7027288655707ce90e09b98584a48101cfb6",
+        "after": "0x21b7d0e9d94a3c914bb7ce13e7d7027288655707ce90e09b98584a48101cfb6",
+        "stable": true
+      },
+      "ownership": {
+        "tokenId": "1038",
+        "owner": "0x074c2664cfc8aff6b1e24befa444488f89a060f9a58550cd5ef1f9c4809a80c3"
+      },
+      "sqlRows": {
+        "blocks": "4",
+        "raw_events": "3",
+        "catalog": "306"
+      },
+      "observed": {
+        "httpRequests": 31,
+        "decodedResponseBytes": 11717647,
+        "rateLimitedResponses": 0,
+        "timingMs": {
+          "count": 31,
+          "min": 55.72233300000016,
+          "median": 74.52554199999986,
+          "p95": 218.1304580000001,
+          "max": 239.47995899999978,
+          "total": 2778.594459
+        }
+      },
+      "limitations": [
+        "One real four-block historical acquisition and local PostgreSQL commit, not a sustained live/backfill fairness soak.",
+        "Boundary reads are outside cycleMs. Public payload bytes are decoded body bytes.",
+        "Other task-local activity can influence CPU/SQL timing; no production SLO or buyer agreement."
+      ]
+    }
+  },
+  "replays": {
+    "dated_main": {
+      "historical": {
+        "sha": "561d94538c794f48ea12ae41617aa6dc8af53432",
+        "from": 664768,
+        "to": 664831,
+        "completeHistory": false,
+        "pureScanMs": 231.60333300000002,
+        "offlineRpcCalls": 87,
+        "sqlWriteStatements": 30,
+        "walBytes": "94424",
+        "dbGrowthBytes": "294912",
+        "progress": [
+          {
+            "block": 664831,
+            "hash": "0x14a89eb9767190b91c36bd4b80ae1a82b04b138a654e2b79a608809dfc5a14d",
+            "source": "0x07ae27a31bb6526e3de9cf02f081f6ce0615ac12a6d7b85ee58b8ad7947a2809",
+            "startBlock": 664768
+          }
+        ],
+        "preflight": {
+          "canSubmit": false,
+          "reasons": [
+            "MARKETPLACE_NOT_DEPLOYED",
+            "SOURCES_SYNCING",
+            "SOURCE_BACKFILL_REQUIRED",
+            "INDEX_STALE",
+            "IDENTITY_UNVERIFIED"
+          ]
+        },
+        "crash": {
+          "signal": "SIGKILL",
+          "uncommittedBoundary": {
+            "state": "uncommitted",
+            "number": 664800,
+            "hash": "0x64da34b160713ad50935cf430cb2d96575134081dcc17b39dfdfa47286ee1c1"
+          },
+          "allTableDigestsUnchanged": true
+        },
+        "restart": {
+          "postgresPidChanged": true,
+          "allTableDigestsMatch": true,
+          "duplicateCatchupMs": 28.111417000000074,
+          "projectionUnchanged": true
+        },
+        "dumpRestore": {
+          "format": "custom",
+          "dumpMs": 107.79733299999998,
+          "restoreMs": 191.7933750000002,
+          "bytes": 52162,
+          "sha256": "0d1eb89c0cc8dd16132327e26608a798b1487ecd263f322a26ae24e4f5b3d864",
+          "tablesVerified": 31,
+          "allTableContentDigestsMatch": true
+        },
+        "controlledReorg": {
+          "controlledRollback": true,
+          "actualObservedFork": false,
+          "rewindTo": 664767,
+          "replayedThrough": 664831,
+          "ms": 272.2009159999998,
+          "ownershipAndActivityDigestRestored": true,
+          "durablePreserved": true
+        },
+        "scannerOutage": {
+          "controlled": true,
+          "projectionUnchanged": true,
+          "sourceProgressUnchanged": true,
+          "errorRecorded": "RPC_UNAVAILABLE",
+          "successfulRetry": true
+        },
+        "density": null
+      },
+      "recent": {
+        "sha": "561d94538c794f48ea12ae41617aa6dc8af53432",
+        "from": 16159924,
+        "to": 16159955,
+        "completeHistory": false,
+        "pureScanMs": 16.647501000000375,
+        "offlineRpcCalls": 47,
+        "sqlWriteStatements": 10,
+        "walBytes": "63080",
+        "dbGrowthBytes": "122880",
+        "progress": [
+          {
+            "block": 16159955,
+            "hash": "0x1650a1b0d624f48e35f6ce1c59ecf977d9c2c2b0372714a54538d1c1557f490",
+            "source": "0x07ae27a31bb6526e3de9cf02f081f6ce0615ac12a6d7b85ee58b8ad7947a2809",
+            "startBlock": 16159924
+          },
+          {
+            "block": 16159955,
+            "hash": "0x1650a1b0d624f48e35f6ce1c59ecf977d9c2c2b0372714a54538d1c1557f490",
+            "source": "0x07ced79b9da11b280209425dce4329d6b8aa5fa03f81a807b9bf3cfbd64cb9d7",
+            "startBlock": 16159924
+          }
+        ],
+        "preflight": {
+          "canSubmit": false,
+          "reasons": [
+            "MARKETPLACE_NOT_DEPLOYED",
+            "SOURCE_BACKFILL_REQUIRED"
+          ]
+        },
+        "crash": null,
+        "restart": null,
+        "dumpRestore": null,
+        "controlledReorg": null,
+        "scannerOutage": {
+          "controlled": true,
+          "projectionUnchanged": true,
+          "sourceProgressUnchanged": true,
+          "errorRecorded": "RPC_UNAVAILABLE",
+          "successfulRetry": true
+        },
+        "density": null
+      },
+      "live": {
+        "sha": "561d94538c794f48ea12ae41617aa6dc8af53432",
+        "from": 16160261,
+        "to": 16160276,
+        "completeHistory": false,
+        "pureScanMs": 7.202832999999373,
+        "offlineRpcCalls": 23,
+        "sqlWriteStatements": 5,
+        "walBytes": "36632",
+        "dbGrowthBytes": "114688",
+        "progress": [
+          {
+            "block": 16160276,
+            "hash": "0x4beebbe9866683995c013718b3650b1b381f5505cdc9b137511c8d9798e6840",
+            "source": "0x07ae27a31bb6526e3de9cf02f081f6ce0615ac12a6d7b85ee58b8ad7947a2809",
+            "startBlock": 16160261
+          },
+          {
+            "block": 16160276,
+            "hash": "0x4beebbe9866683995c013718b3650b1b381f5505cdc9b137511c8d9798e6840",
+            "source": "0x07ced79b9da11b280209425dce4329d6b8aa5fa03f81a807b9bf3cfbd64cb9d7",
+            "startBlock": 16160261
+          }
+        ],
+        "preflight": {
+          "canSubmit": false,
+          "reasons": [
+            "MARKETPLACE_NOT_DEPLOYED",
+            "SOURCE_BACKFILL_REQUIRED"
+          ]
+        },
+        "crash": null,
+        "restart": null,
+        "dumpRestore": null,
+        "controlledReorg": null,
+        "scannerOutage": {
+          "controlled": true,
+          "projectionUnchanged": true,
+          "sourceProgressUnchanged": true,
+          "errorRecorded": "RPC_UNAVAILABLE",
+          "successfulRetry": true
+        },
+        "density": null
+      }
+    },
+    "pr122": {
+      "historical": {
+        "sha": "a03ff136c351ed931ad96a9fd7dd17e6c93696e5",
+        "from": 664768,
+        "to": 664831,
+        "completeHistory": false,
+        "pureScanMs": 2307.9776650000003,
+        "offlineRpcCalls": 365,
+        "sqlWriteStatements": 2614,
+        "walBytes": "2618856",
+        "dbGrowthBytes": "2277376",
+        "progress": [
+          {
+            "block": 664831,
+            "hash": "0x14a89eb9767190b91c36bd4b80ae1a82b04b138a654e2b79a608809dfc5a14d",
+            "source": "0x07ae27a31bb6526e3de9cf02f081f6ce0615ac12a6d7b85ee58b8ad7947a2809",
+            "startBlock": 664768
+          }
+        ],
+        "preflight": {
+          "canSubmit": false,
+          "reasons": [
+            "MARKETPLACE_NOT_DEPLOYED",
+            "SOURCES_SYNCING",
+            "SOURCE_BACKFILL_REQUIRED",
+            "INDEX_STALE",
+            "IDENTITY_UNVERIFIED"
+          ]
+        },
+        "crash": {
+          "signal": "SIGKILL",
+          "uncommittedBoundary": {
+            "state": "uncommitted",
+            "number": 664800,
+            "hash": "0x64da34b160713ad50935cf430cb2d96575134081dcc17b39dfdfa47286ee1c1"
+          },
+          "allTableDigestsUnchanged": true
+        },
+        "restart": {
+          "postgresPidChanged": true,
+          "allTableDigestsMatch": true,
+          "duplicateCatchupMs": 25.916790999999648,
+          "projectionUnchanged": true
+        },
+        "dumpRestore": {
+          "format": "custom",
+          "dumpMs": 128.0894159999989,
+          "restoreMs": 362.56366699999853,
+          "bytes": 181545,
+          "sha256": "72f5b0005c4b68d1e5bc823bcf450189dbb473c971a147948281d2619283b3ce",
+          "tablesVerified": 37,
+          "allTableContentDigestsMatch": true
+        },
+        "controlledReorg": {
+          "controlledRollback": true,
+          "actualObservedFork": false,
+          "rewindTo": 664767,
+          "replayedThrough": 664831,
+          "ms": 2774.6929170000003,
+          "ownershipAndActivityDigestRestored": true,
+          "durablePreserved": true
+        },
+        "scannerOutage": {
+          "controlled": true,
+          "projectionUnchanged": true,
+          "sourceProgressUnchanged": true,
+          "errorRecorded": "RPC_UNAVAILABLE",
+          "successfulRetry": true
+        },
+        "density": {
+          "rejected": true,
+          "code": "WINDOW_EVENTS_DENSE",
+          "head": null
+        }
+      },
+      "recent": {
+        "sha": "a03ff136c351ed931ad96a9fd7dd17e6c93696e5",
+        "from": 16159924,
+        "to": 16159955,
+        "completeHistory": false,
+        "pureScanMs": 47.419458000000304,
+        "offlineRpcCalls": 49,
+        "sqlWriteStatements": 82,
+        "walBytes": "134800",
+        "dbGrowthBytes": "229376",
+        "progress": [
+          {
+            "block": 16159955,
+            "hash": "0x1650a1b0d624f48e35f6ce1c59ecf977d9c2c2b0372714a54538d1c1557f490",
+            "source": "0x07ae27a31bb6526e3de9cf02f081f6ce0615ac12a6d7b85ee58b8ad7947a2809",
+            "startBlock": 16159924
+          },
+          {
+            "block": 16159955,
+            "hash": "0x1650a1b0d624f48e35f6ce1c59ecf977d9c2c2b0372714a54538d1c1557f490",
+            "source": "0x07ced79b9da11b280209425dce4329d6b8aa5fa03f81a807b9bf3cfbd64cb9d7",
+            "startBlock": 16159924
+          }
+        ],
+        "preflight": {
+          "canSubmit": false,
+          "reasons": [
+            "MARKETPLACE_NOT_DEPLOYED",
+            "SOURCE_BACKFILL_REQUIRED"
+          ]
+        },
+        "crash": null,
+        "restart": null,
+        "dumpRestore": null,
+        "controlledReorg": null,
+        "scannerOutage": {
+          "controlled": true,
+          "projectionUnchanged": true,
+          "sourceProgressUnchanged": true,
+          "errorRecorded": "RPC_UNAVAILABLE",
+          "successfulRetry": true
+        },
+        "density": null
+      },
+      "live": {
+        "sha": "a03ff136c351ed931ad96a9fd7dd17e6c93696e5",
+        "from": 16160261,
+        "to": 16160276,
+        "completeHistory": false,
+        "pureScanMs": 33.463166999999885,
+        "offlineRpcCalls": 24,
+        "sqlWriteStatements": 41,
+        "walBytes": "74224",
+        "dbGrowthBytes": "180224",
+        "progress": [
+          {
+            "block": 16160276,
+            "hash": "0x4beebbe9866683995c013718b3650b1b381f5505cdc9b137511c8d9798e6840",
+            "source": "0x07ae27a31bb6526e3de9cf02f081f6ce0615ac12a6d7b85ee58b8ad7947a2809",
+            "startBlock": 16160261
+          },
+          {
+            "block": 16160276,
+            "hash": "0x4beebbe9866683995c013718b3650b1b381f5505cdc9b137511c8d9798e6840",
+            "source": "0x07ced79b9da11b280209425dce4329d6b8aa5fa03f81a807b9bf3cfbd64cb9d7",
+            "startBlock": 16160261
+          }
+        ],
+        "preflight": {
+          "canSubmit": false,
+          "reasons": [
+            "MARKETPLACE_NOT_DEPLOYED",
+            "SOURCE_BACKFILL_REQUIRED"
+          ]
+        },
+        "crash": null,
+        "restart": null,
+        "dumpRestore": null,
+        "controlledReorg": null,
+        "scannerOutage": {
+          "controlled": true,
+          "projectionUnchanged": true,
+          "sourceProgressUnchanged": true,
+          "errorRecorded": "RPC_UNAVAILABLE",
+          "successfulRetry": true
+        },
+        "density": null
+      }
+    },
+    "current_main": {
+      "historical": {
+        "sha": "9b65018cbd804c3ae722587ccca3826b8c820a48",
+        "from": 664768,
+        "to": 664831,
+        "completeHistory": false,
+        "pureScanMs": 240.69491699999935,
+        "offlineRpcCalls": 87,
+        "sqlWriteStatements": 30,
+        "walBytes": "94536",
+        "dbGrowthBytes": "294912",
+        "progress": [
+          {
+            "block": 664831,
+            "hash": "0x14a89eb9767190b91c36bd4b80ae1a82b04b138a654e2b79a608809dfc5a14d",
+            "source": "0x07ae27a31bb6526e3de9cf02f081f6ce0615ac12a6d7b85ee58b8ad7947a2809",
+            "startBlock": 664768
+          }
+        ],
+        "preflight": {
+          "canSubmit": false,
+          "reasons": [
+            "MARKETPLACE_NOT_DEPLOYED",
+            "SOURCES_SYNCING",
+            "SOURCE_BACKFILL_REQUIRED",
+            "INDEX_STALE",
+            "IDENTITY_UNVERIFIED"
+          ]
+        },
+        "crash": {
+          "signal": "SIGKILL",
+          "uncommittedBoundary": {
+            "state": "uncommitted",
+            "number": 664800,
+            "hash": "0x64da34b160713ad50935cf430cb2d96575134081dcc17b39dfdfa47286ee1c1"
+          },
+          "allTableDigestsUnchanged": true
+        },
+        "restart": {
+          "postgresPidChanged": true,
+          "allTableDigestsMatch": true,
+          "duplicateCatchupMs": 25.219375000000127,
+          "projectionUnchanged": true
+        },
+        "dumpRestore": {
+          "format": "custom",
+          "dumpMs": 88.67249999999967,
+          "restoreMs": 136.73149999999987,
+          "bytes": 52251,
+          "sha256": "416e1e21a69e8640145be61947c31f2b69bde669cc4191e85db1b6aaeceede9c",
+          "tablesVerified": 31,
+          "allTableContentDigestsMatch": true
+        },
+        "controlledReorg": {
+          "controlledRollback": true,
+          "actualObservedFork": false,
+          "rewindTo": 664767,
+          "replayedThrough": 664831,
+          "ms": 236.36691699999983,
+          "ownershipAndActivityDigestRestored": true,
+          "durablePreserved": true
+        },
+        "scannerOutage": {
+          "controlled": true,
+          "projectionUnchanged": true,
+          "sourceProgressUnchanged": true,
+          "errorRecorded": "RPC_UNAVAILABLE",
+          "successfulRetry": true
+        },
+        "density": null
+      },
+      "recent": {
+        "sha": "9b65018cbd804c3ae722587ccca3826b8c820a48",
+        "from": 16159924,
+        "to": 16159955,
+        "completeHistory": false,
+        "pureScanMs": 12.011499999999614,
+        "offlineRpcCalls": 47,
+        "sqlWriteStatements": 10,
+        "walBytes": "63056",
+        "dbGrowthBytes": "122880",
+        "progress": [
+          {
+            "block": 16159955,
+            "hash": "0x1650a1b0d624f48e35f6ce1c59ecf977d9c2c2b0372714a54538d1c1557f490",
+            "source": "0x07ae27a31bb6526e3de9cf02f081f6ce0615ac12a6d7b85ee58b8ad7947a2809",
+            "startBlock": 16159924
+          },
+          {
+            "block": 16159955,
+            "hash": "0x1650a1b0d624f48e35f6ce1c59ecf977d9c2c2b0372714a54538d1c1557f490",
+            "source": "0x07ced79b9da11b280209425dce4329d6b8aa5fa03f81a807b9bf3cfbd64cb9d7",
+            "startBlock": 16159924
+          }
+        ],
+        "preflight": {
+          "canSubmit": false,
+          "reasons": [
+            "MARKETPLACE_NOT_DEPLOYED",
+            "SOURCE_BACKFILL_REQUIRED"
+          ]
+        },
+        "crash": null,
+        "restart": null,
+        "dumpRestore": null,
+        "controlledReorg": null,
+        "scannerOutage": {
+          "controlled": true,
+          "projectionUnchanged": true,
+          "sourceProgressUnchanged": true,
+          "errorRecorded": "RPC_UNAVAILABLE",
+          "successfulRetry": true
+        },
+        "density": null
+      },
+      "live": {
+        "sha": "9b65018cbd804c3ae722587ccca3826b8c820a48",
+        "from": 16160261,
+        "to": 16160276,
+        "completeHistory": false,
+        "pureScanMs": 6.6472499999999854,
+        "offlineRpcCalls": 23,
+        "sqlWriteStatements": 5,
+        "walBytes": "36632",
+        "dbGrowthBytes": "114688",
+        "progress": [
+          {
+            "block": 16160276,
+            "hash": "0x4beebbe9866683995c013718b3650b1b381f5505cdc9b137511c8d9798e6840",
+            "source": "0x07ae27a31bb6526e3de9cf02f081f6ce0615ac12a6d7b85ee58b8ad7947a2809",
+            "startBlock": 16160261
+          },
+          {
+            "block": 16160276,
+            "hash": "0x4beebbe9866683995c013718b3650b1b381f5505cdc9b137511c8d9798e6840",
+            "source": "0x07ced79b9da11b280209425dce4329d6b8aa5fa03f81a807b9bf3cfbd64cb9d7",
+            "startBlock": 16160261
+          }
+        ],
+        "preflight": {
+          "canSubmit": false,
+          "reasons": [
+            "MARKETPLACE_NOT_DEPLOYED",
+            "SOURCE_BACKFILL_REQUIRED"
+          ]
+        },
+        "crash": null,
+        "restart": null,
+        "dumpRestore": null,
+        "controlledReorg": null,
+        "scannerOutage": {
+          "controlled": true,
+          "projectionUnchanged": true,
+          "sourceProgressUnchanged": true,
+          "errorRecorded": "RPC_UNAVAILABLE",
+          "successfulRetry": true
+        },
+        "density": null
+      }
+    },
+    "intermediate": {
+      "historical": {
+        "sha": "a1805a4639493777706ab9f68f612bc8c3838a64",
+        "from": 664768,
+        "to": 664831,
+        "completeHistory": false,
+        "pureScanMs": 1838.2427929999994,
+        "offlineRpcCalls": 361,
+        "sqlWriteStatements": 2620,
+        "walBytes": "2625992",
+        "dbGrowthBytes": "2310144",
+        "progress": [
+          {
+            "block": 664831,
+            "hash": "0x14a89eb9767190b91c36bd4b80ae1a82b04b138a654e2b79a608809dfc5a14d",
+            "source": "0x07ae27a31bb6526e3de9cf02f081f6ce0615ac12a6d7b85ee58b8ad7947a2809",
+            "startBlock": 664768
+          }
+        ],
+        "preflight": {
+          "canSubmit": false,
+          "reasons": [
+            "MARKETPLACE_NOT_DEPLOYED",
+            "SOURCES_SYNCING",
+            "SOURCE_BACKFILL_REQUIRED",
+            "INDEX_STALE",
+            "IDENTITY_UNVERIFIED"
+          ]
+        },
+        "crash": {
+          "signal": "SIGKILL",
+          "uncommittedBoundary": {
+            "state": "uncommitted",
+            "number": 664800,
+            "hash": "0x64da34b160713ad50935cf430cb2d96575134081dcc17b39dfdfa47286ee1c1"
+          },
+          "allTableDigestsUnchanged": true
+        },
+        "restart": {
+          "postgresPidChanged": true,
+          "allTableDigestsMatch": true,
+          "duplicateCatchupMs": 22.699165999999423,
+          "projectionUnchanged": true
+        },
+        "dumpRestore": {
+          "format": "custom",
+          "dumpMs": 101.41929199999959,
+          "restoreMs": 200.9489590000003,
+          "bytes": 186399,
+          "sha256": "c9ee789625f467b08d32ecede81bfe6b648f18b707c3e4ad685ea13bfad284ba",
+          "tablesVerified": 37,
+          "allTableContentDigestsMatch": true
+        },
+        "controlledReorg": {
+          "controlledRollback": true,
+          "actualObservedFork": false,
+          "rewindTo": 664767,
+          "replayedThrough": 664831,
+          "ms": 1617.5846250000004,
+          "ownershipAndActivityDigestRestored": true,
+          "durablePreserved": true
+        },
+        "scannerOutage": {
+          "controlled": true,
+          "projectionUnchanged": true,
+          "sourceProgressUnchanged": true,
+          "errorRecorded": "RPC_UNAVAILABLE",
+          "successfulRetry": true
+        },
+        "density": {
+          "rejected": true,
+          "code": "WINDOW_EVENTS_DENSE",
+          "head": null
+        }
+      },
+      "recent": {
+        "sha": "a1805a4639493777706ab9f68f612bc8c3838a64",
+        "from": 16159924,
+        "to": 16159955,
+        "completeHistory": false,
+        "pureScanMs": 43.42999999999938,
+        "offlineRpcCalls": 45,
+        "sqlWriteStatements": 82,
+        "walBytes": "135016",
+        "dbGrowthBytes": "229376",
+        "progress": [
+          {
+            "block": 16159955,
+            "hash": "0x1650a1b0d624f48e35f6ce1c59ecf977d9c2c2b0372714a54538d1c1557f490",
+            "source": "0x07ae27a31bb6526e3de9cf02f081f6ce0615ac12a6d7b85ee58b8ad7947a2809",
+            "startBlock": 16159924
+          },
+          {
+            "block": 16159955,
+            "hash": "0x1650a1b0d624f48e35f6ce1c59ecf977d9c2c2b0372714a54538d1c1557f490",
+            "source": "0x07ced79b9da11b280209425dce4329d6b8aa5fa03f81a807b9bf3cfbd64cb9d7",
+            "startBlock": 16159924
+          }
+        ],
+        "preflight": {
+          "canSubmit": false,
+          "reasons": [
+            "MARKETPLACE_NOT_DEPLOYED",
+            "SOURCE_BACKFILL_REQUIRED"
+          ]
+        },
+        "crash": null,
+        "restart": null,
+        "dumpRestore": null,
+        "controlledReorg": null,
+        "scannerOutage": {
+          "controlled": true,
+          "projectionUnchanged": true,
+          "sourceProgressUnchanged": true,
+          "errorRecorded": "RPC_UNAVAILABLE",
+          "successfulRetry": true
+        },
+        "density": null
+      },
+      "live": {
+        "sha": "a1805a4639493777706ab9f68f612bc8c3838a64",
+        "from": 16160261,
+        "to": 16160276,
+        "completeHistory": false,
+        "pureScanMs": 18.511000000000422,
+        "offlineRpcCalls": 22,
+        "sqlWriteStatements": 41,
+        "walBytes": "74448",
+        "dbGrowthBytes": "180224",
+        "progress": [
+          {
+            "block": 16160276,
+            "hash": "0x4beebbe9866683995c013718b3650b1b381f5505cdc9b137511c8d9798e6840",
+            "source": "0x07ae27a31bb6526e3de9cf02f081f6ce0615ac12a6d7b85ee58b8ad7947a2809",
+            "startBlock": 16160261
+          },
+          {
+            "block": 16160276,
+            "hash": "0x4beebbe9866683995c013718b3650b1b381f5505cdc9b137511c8d9798e6840",
+            "source": "0x07ced79b9da11b280209425dce4329d6b8aa5fa03f81a807b9bf3cfbd64cb9d7",
+            "startBlock": 16160261
+          }
+        ],
+        "preflight": {
+          "canSubmit": false,
+          "reasons": [
+            "MARKETPLACE_NOT_DEPLOYED",
+            "SOURCE_BACKFILL_REQUIRED"
+          ]
+        },
+        "crash": null,
+        "restart": null,
+        "dumpRestore": null,
+        "controlledReorg": null,
+        "scannerOutage": {
+          "controlled": true,
+          "projectionUnchanged": true,
+          "sourceProgressUnchanged": true,
+          "errorRecorded": "RPC_UNAVAILABLE",
+          "successfulRetry": true
+        },
+        "density": null
+      }
+    },
+    "final": {
+      "historical": {
+        "sha": "6a5caf2db4b8a72d411ad7c7e8b61345fc65e43a",
+        "from": 664768,
+        "to": 664831,
+        "completeHistory": false,
+        "pureScanMs": 2819.0293749999996,
+        "offlineRpcCalls": 361,
+        "sqlWriteStatements": 2620,
+        "walBytes": "2627920",
+        "dbGrowthBytes": "2310144",
+        "progress": [
+          {
+            "block": 664831,
+            "hash": "0x14a89eb9767190b91c36bd4b80ae1a82b04b138a654e2b79a608809dfc5a14d",
+            "source": "0x07ae27a31bb6526e3de9cf02f081f6ce0615ac12a6d7b85ee58b8ad7947a2809",
+            "startBlock": 664768
+          }
+        ],
+        "preflight": {
+          "canSubmit": false,
+          "reasons": [
+            "MARKETPLACE_NOT_DEPLOYED",
+            "SOURCES_SYNCING",
+            "SOURCE_BACKFILL_REQUIRED",
+            "INDEX_STALE",
+            "IDENTITY_UNVERIFIED"
+          ]
+        },
+        "crash": {
+          "signal": "SIGKILL",
+          "uncommittedBoundary": {
+            "state": "uncommitted",
+            "number": 664800,
+            "hash": "0x64da34b160713ad50935cf430cb2d96575134081dcc17b39dfdfa47286ee1c1"
+          },
+          "allTableDigestsUnchanged": true
+        },
+        "restart": {
+          "postgresPidChanged": true,
+          "allTableDigestsMatch": true,
+          "duplicateCatchupMs": 49.30308299999979,
+          "projectionUnchanged": true
+        },
+        "dumpRestore": {
+          "format": "custom",
+          "dumpMs": 233.35950000000048,
+          "restoreMs": 452.37829200000033,
+          "bytes": 187595,
+          "sha256": "76f528b30081b8131adb16b0d40189bdc263b103aed81f6ea31fd8f2d3f1ce72",
+          "tablesVerified": 37,
+          "allTableContentDigestsMatch": true
+        },
+        "controlledReorg": {
+          "controlledRollback": true,
+          "actualObservedFork": false,
+          "rewindTo": 664767,
+          "replayedThrough": 664831,
+          "ms": 2430.0579580000003,
+          "ownershipAndActivityDigestRestored": true,
+          "durablePreserved": true
+        },
+        "scannerOutage": {
+          "controlled": true,
+          "projectionUnchanged": true,
+          "sourceProgressUnchanged": true,
+          "errorRecorded": "RPC_UNAVAILABLE",
+          "successfulRetry": true
+        },
+        "density": {
+          "rejected": true,
+          "code": "WINDOW_EVENTS_DENSE",
+          "head": null
+        }
+      },
+      "recent": {
+        "sha": "6a5caf2db4b8a72d411ad7c7e8b61345fc65e43a",
+        "from": 16159924,
+        "to": 16159955,
+        "completeHistory": false,
+        "pureScanMs": 41.78691700000127,
+        "offlineRpcCalls": 45,
+        "sqlWriteStatements": 82,
+        "walBytes": "135016",
+        "dbGrowthBytes": "229376",
+        "progress": [
+          {
+            "block": 16159955,
+            "hash": "0x1650a1b0d624f48e35f6ce1c59ecf977d9c2c2b0372714a54538d1c1557f490",
+            "source": "0x07ae27a31bb6526e3de9cf02f081f6ce0615ac12a6d7b85ee58b8ad7947a2809",
+            "startBlock": 16159924
+          },
+          {
+            "block": 16159955,
+            "hash": "0x1650a1b0d624f48e35f6ce1c59ecf977d9c2c2b0372714a54538d1c1557f490",
+            "source": "0x07ced79b9da11b280209425dce4329d6b8aa5fa03f81a807b9bf3cfbd64cb9d7",
+            "startBlock": 16159924
+          }
+        ],
+        "preflight": {
+          "canSubmit": false,
+          "reasons": [
+            "MARKETPLACE_NOT_DEPLOYED",
+            "SOURCE_BACKFILL_REQUIRED"
+          ]
+        },
+        "crash": null,
+        "restart": null,
+        "dumpRestore": null,
+        "controlledReorg": null,
+        "scannerOutage": {
+          "controlled": true,
+          "projectionUnchanged": true,
+          "sourceProgressUnchanged": true,
+          "errorRecorded": "RPC_UNAVAILABLE",
+          "successfulRetry": true
+        },
+        "density": null
+      },
+      "live": {
+        "sha": "6a5caf2db4b8a72d411ad7c7e8b61345fc65e43a",
+        "from": 16160261,
+        "to": 16160276,
+        "completeHistory": false,
+        "pureScanMs": 84.57670900000085,
+        "offlineRpcCalls": 22,
+        "sqlWriteStatements": 41,
+        "walBytes": "74448",
+        "dbGrowthBytes": "180224",
+        "progress": [
+          {
+            "block": 16160276,
+            "hash": "0x4beebbe9866683995c013718b3650b1b381f5505cdc9b137511c8d9798e6840",
+            "source": "0x07ae27a31bb6526e3de9cf02f081f6ce0615ac12a6d7b85ee58b8ad7947a2809",
+            "startBlock": 16160261
+          },
+          {
+            "block": 16160276,
+            "hash": "0x4beebbe9866683995c013718b3650b1b381f5505cdc9b137511c8d9798e6840",
+            "source": "0x07ced79b9da11b280209425dce4329d6b8aa5fa03f81a807b9bf3cfbd64cb9d7",
+            "startBlock": 16160261
+          }
+        ],
+        "preflight": {
+          "canSubmit": false,
+          "reasons": [
+            "MARKETPLACE_NOT_DEPLOYED",
+            "SOURCE_BACKFILL_REQUIRED"
+          ]
+        },
+        "crash": null,
+        "restart": null,
+        "dumpRestore": null,
+        "controlledReorg": null,
+        "scannerOutage": {
+          "controlled": true,
+          "projectionUnchanged": true,
+          "sourceProgressUnchanged": true,
+          "errorRecorded": "RPC_UNAVAILABLE",
+          "successfulRetry": true
+        },
+        "density": null
+      }
+    }
+  },
+  "currentVsFinalExistingProjection": [
+    {
+      "sample": "historical",
+      "exactExistingProjectionEqual": false,
+      "originalFieldValuesAndRowCountsPreserved": true,
+      "differences": [
+        {
+          "path": "/activity/0/decoder",
+          "kind": "added",
+          "after": "nft-members.v2"
+        },
+        {
+          "path": "/activity/0/decoderVersion",
+          "kind": "added",
+          "after": "nft-events.v2"
+        },
+        {
+          "path": "/activity/0/transactionIndex",
+          "kind": "added",
+          "after": 201
+        }
+      ],
+      "normalization": "Only observation/fetch wall clocks removed; chain provenance objects and raw events retained by replay-utils.stable"
+    },
+    {
+      "sample": "recent",
+      "exactExistingProjectionEqual": true,
+      "originalFieldValuesAndRowCountsPreserved": true,
+      "differences": [],
+      "normalization": "Only observation/fetch wall clocks removed; chain provenance objects and raw events retained by replay-utils.stable"
+    },
+    {
+      "sample": "live",
+      "exactExistingProjectionEqual": true,
+      "originalFieldValuesAndRowCountsPreserved": true,
+      "differences": [],
+      "normalization": "Only observation/fetch wall clocks removed; chain provenance objects and raw events retained by replay-utils.stable"
+    }
+  ],
+  "datedVsCurrentExistingProjection": [
+    {
+      "sample": "historical",
+      "exactExistingProjectionEqual": true,
+      "originalFieldValuesAndRowCountsPreserved": true,
+      "differences": [],
+      "normalization": "Only observation/fetch wall clocks removed; chain provenance objects and raw events retained by replay-utils.stable"
+    },
+    {
+      "sample": "recent",
+      "exactExistingProjectionEqual": true,
+      "originalFieldValuesAndRowCountsPreserved": true,
+      "differences": [],
+      "normalization": "Only observation/fetch wall clocks removed; chain provenance objects and raw events retained by replay-utils.stable"
+    },
+    {
+      "sample": "live",
+      "exactExistingProjectionEqual": true,
+      "originalFieldValuesAndRowCountsPreserved": true,
+      "differences": [],
+      "normalization": "Only observation/fetch wall clocks removed; chain provenance objects and raw events retained by replay-utils.stable"
+    }
+  ],
+  "finalMetadata": {
+    "at": "2026-10-10T05:52:02.916Z",
+    "sourceState": "<evidence-packet>/state-2026-10-10T05-30-10-070Z",
+    "tokenId": "1038",
+    "metadataSource": "Real pinned on-chain inline URI and downloaded SVG, replayed without further origin traffic",
+    "networkRequest": false,
+    "cases": [
+      {
+        "label": "candidate",
+        "sha": "6a5caf2db4b8a72d411ad7c7e8b61345fc65e43a",
+        "mode": "success",
+        "ms": 66.81495799999993,
+        "calls": 1,
+        "metadataStatus": "ready",
+        "imageStatus": "ready",
+        "jobState": "complete",
+        "ownerPreserved": true,
+        "assetSha256": "f1414a74828aee4b1e3f654b9654cc6bbab1e1c974363c12c0175fea7ee88187",
+        "controlledFault": false
+      },
+      {
+        "label": "candidate",
+        "sha": "6a5caf2db4b8a72d411ad7c7e8b61345fc65e43a",
+        "mode": "rpc-outage",
+        "ms": 21.102707999999893,
+        "calls": 2,
+        "metadataStatus": "failed",
+        "imageStatus": null,
+        "jobState": "failed",
+        "ownerPreserved": true,
+        "assetSha256": null,
+        "controlledFault": true
+      },
+      {
+        "label": "candidate",
+        "sha": "6a5caf2db4b8a72d411ad7c7e8b61345fc65e43a",
+        "mode": "image-outage",
+        "ms": 24.087875000000167,
+        "calls": 1,
+        "metadataStatus": "ready",
+        "imageStatus": "failed",
+        "jobState": "complete",
+        "ownerPreserved": true,
+        "assetSha256": null,
+        "controlledFault": true
+      }
+    ],
+    "failures": []
+  },
+  "liveMetadataOrigin": {
+    "at": "2026-10-10T05:30:56.369Z",
+    "metadata": {
+      "status": "success",
+      "source": "actual pinned token_uri inline data",
+      "bytes": 419,
+      "sha256": "c8aca3ebe6292858051e46cf73ddc46d052ced28fe0ba0a2a55e0700f521b29a",
+      "ms": 2.9114160000000027,
+      "normalized": {
+        "name": "Molslommol",
+        "description": null,
+        "image": "https://gateway.pinata.cloud/ipfs/QmS136SdgcHsiaKJdFVfQWNMS5tHHcbazbUxYqpUZKVEj6",
+        "attributes": [
+          {
+            "name": "Regions",
+            "value": 7
+          },
+          {
+            "name": "Cities",
+            "value": 17
+          },
+          {
+            "name": "Harbors",
+            "value": 10
+          },
+          {
+            "name": "Rivers",
+            "value": 24
+          },
+          {
+            "name": "Resource",
+            "value": "Coal"
+          },
+          {
+            "name": "Resource",
+            "value": "Cold Iron"
+          },
+          {
+            "name": "Order",
+            "value": "The Order of Detection"
+          }
+        ],
+        "resourceCount": 2
+      }
+    },
+    "captureCorrection": "Earlier capture-state script mistakenly passed a data URI to fetchPublic. That method error is not an origin/product failure; this result uses the production parseDataUri path.",
+    "image": {
+      "status": "success",
+      "bytes": 645351,
+      "contentType": "image/svg+xml",
+      "sha256": "f1414a74828aee4b1e3f654b9654cc6bbab1e1c974363c12c0175fea7ee88187",
+      "ms": 7891.294167,
+      "uri": "https://gateway.pinata.cloud/ipfs/QmS136SdgcHsiaKJdFVfQWNMS5tHHcbazbUxYqpUZKVEj6"
+    }
+  },
+  "http": {
+    "current": {
+      "label": "candidate",
+      "sha": "9b65018cbd804c3ae722587ccca3826b8c820a48",
+      "planned": {
+        "browsePerSecond": 50,
+        "positiveFixture25RowPreflightsPerSecond": 1,
+        "durationSeconds": 5
+      },
+      "observedElapsedMs": 4984.521833000001,
+      "browse": {
+        "count": 250,
+        "min": 2.098333000000139,
+        "median": 3.6576249999998254,
+        "p95": 9.841667000000143,
+        "max": 49.940583999999944,
+        "total": 1191.3826150000057
+      },
+      "fixturePreflight": {
+        "count": 5,
+        "min": 10.10616600000003,
+        "median": 12.49104199999988,
+        "p95": 28.094208000000435,
+        "max": 28.094208000000435,
+        "total": 83.26520800000037
+      },
+      "statusCounts": {
+        "200": 255
+      },
+      "fixtureRpcCalls": 405,
+      "decodedResponseBytes": 330625,
+      "sourceCardinality": {
+        "realBrowseTokens": 1,
+        "syntheticFixtureTokens": 25,
+        "syntheticFixtureOrders": 25
+      },
+      "noTransactionsSubmitted": true
+    },
+    "final": {
+      "label": "candidate",
+      "sha": "6a5caf2db4b8a72d411ad7c7e8b61345fc65e43a",
+      "planned": {
+        "browsePerSecond": 50,
+        "positiveFixture25RowPreflightsPerSecond": 1,
+        "durationSeconds": 5
+      },
+      "observedElapsedMs": 4987.032625,
+      "browse": {
+        "count": 250,
+        "min": 3.012333000000126,
+        "median": 5.5871250000000146,
+        "p95": 12.861832999999933,
+        "max": 41.44999999999982,
+        "total": 1662.378124999994
+      },
+      "fixturePreflight": {
+        "count": 5,
+        "min": 19.18012499999986,
+        "median": 33.720124999999825,
+        "p95": 51.279166999999916,
+        "max": 51.279166999999916,
+        "total": 177.33687499999928
+      },
+      "statusCounts": {
+        "200": 255
+      },
+      "fixtureRpcCalls": 405,
+      "decodedResponseBytes": 434375,
+      "sourceCardinality": {
+        "realBrowseTokens": 1,
+        "syntheticFixtureTokens": 25,
+        "syntheticFixtureOrders": 25
+      },
+      "noTransactionsSubmitted": true
+    }
+  },
+  "testReceipts": {
+    "measurement_unit": {
+      "tests": 4,
+      "pass": 4,
+      "fail": 0,
+      "skipped": 0
+    },
+    "current_main_metadata_pg": {
+      "tests": 7,
+      "pass": 7,
+      "fail": 0,
+      "skipped": 0
+    },
+    "final_migration_catalog_metadata_pg": {
+      "tests": 14,
+      "pass": 14,
+      "fail": 0,
+      "skipped": 0
+    },
+    "final_discovery_pg_and_legacy_native": {
+      "tests": 22,
+      "pass": 22,
+      "fail": 0,
+      "skipped": 0
+    },
+    "final_public_api_native": {
+      "tests": 11,
+      "pass": 11,
+      "fail": 0,
+      "skipped": 0
+    },
+    "intermediate_nft_native_fixtures": {
+      "tests": 51,
+      "pass": 51,
+      "fail": 0,
+      "skipped": 0
+    },
+    "intermediate_nft_pg_fixtures": {
+      "tests": 24,
+      "pass": 24,
+      "fail": 0,
+      "skipped": 0
+    }
+  },
+  "historicalOverlayIntermediate": {
+    "at": "2026-10-10T05:42:42.048Z",
+    "sha": "a1805a4639493777706ab9f68f612bc8c3838a64",
+    "capture": "<evidence-packet>/capture-2026-10-10T05-28-30-720Z",
+    "partialHistory": true,
+    "realRecordedWindows": true,
+    "noTransactionsSubmitted": true,
+    "unprovenFirstParentRejected": "CHAIN_GAP",
+    "invalidPinnedTarget": {
+      "code": "BACKFILL_ANCHOR",
+      "message": "Historical overlay anchor changed"
+    },
+    "overlay": {
+      "ms": 3157.8615,
+      "rounds": [
+        {
+          "from": 664768,
+          "to": 664783,
+          "scan": {
+            "indexed": 664783,
+            "head": 16159955,
+            "blocks": 16,
+            "receiptBlocks": 16,
+            "mode": "full_receipts",
+            "events": 3,
+            "elapsedMs": 577,
+            "acquireMs": 174,
+            "rateLimitedResponses": 0,
+            "commitMs": 403,
+            "blocksPerSecond": 27.7,
+            "eventScans": 62,
+            "unknownEmitters": 500,
+            "candidatesCreated": 494,
+            "malformedEmitters": 0
+          }
+        },
+        {
+          "from": 664784,
+          "to": 664799,
+          "scan": {
+            "indexed": 664799,
+            "head": 16159955,
+            "blocks": 16,
+            "receiptBlocks": 16,
+            "mode": "full_receipts",
+            "events": 0,
+            "elapsedMs": 420,
+            "acquireMs": 190,
+            "rateLimitedResponses": 0,
+            "commitMs": 230,
+            "blocksPerSecond": 38.1,
+            "eventScans": 69,
+            "unknownEmitters": 500,
+            "candidatesCreated": 284,
+            "malformedEmitters": 0
+          }
+        },
+        {
+          "from": 664800,
+          "to": 664815,
+          "scan": {
+            "indexed": 664815,
+            "head": 16159955,
+            "blocks": 16,
+            "receiptBlocks": 16,
+            "mode": "full_receipts",
+            "events": 0,
+            "elapsedMs": 1081,
+            "acquireMs": 218,
+            "rateLimitedResponses": 0,
+            "commitMs": 863,
+            "blocksPerSecond": 14.8,
+            "eventScans": 71,
+            "unknownEmitters": 500,
+            "candidatesCreated": 268,
+            "malformedEmitters": 0
+          }
+        },
+        {
+          "from": 664816,
+          "to": 664831,
+          "scan": {
+            "indexed": 664831,
+            "head": 16159955,
+            "blocks": 16,
+            "receiptBlocks": 16,
+            "mode": "full_receipts",
+            "events": 0,
+            "elapsedMs": 1075,
+            "acquireMs": 221,
+            "rateLimitedResponses": 0,
+            "commitMs": 854,
+            "blocksPerSecond": 14.9,
+            "eventScans": 72,
+            "unknownEmitters": 500,
+            "candidatesCreated": 240,
+            "malformedEmitters": 0
+          }
+        }
+      ],
+      "canonicalHeadRetained": true,
+      "marketplaceProgressUnchanged": true,
+      "oneRealMintProjected": true,
+      "currentOwnerMatchesPinnedRead": true,
+      "applicationPreserved": true,
+      "progress": [
+        {
+          "block": 16159955,
+          "hash": "0x1650a1b0d624f48e35f6ce1c59ecf977d9c2c2b0372714a54538d1c1557f490",
+          "source": "0x07ae27a31bb6526e3de9cf02f081f6ce0615ac12a6d7b85ee58b8ad7947a2809",
+          "startBlock": 16159924
+        },
+        {
+          "block": 16159955,
+          "hash": "0x1650a1b0d624f48e35f6ce1c59ecf977d9c2c2b0372714a54538d1c1557f490",
+          "source": "0x07ced79b9da11b280209425dce4329d6b8aa5fa03f81a807b9bf3cfbd64cb9d7",
+          "startBlock": 16159924
+        }
+      ],
+      "coverage": [],
+      "completeHistory": false
+    }
+  },
+  "proposedBackfillDefault": {
+    "blocks": 4,
+    "basis": "One real four-block dense historical acquisition took2.359s at intermediatea1805a4; final scheduler uses window4 and yields after one round",
+    "productionSloVerified": false,
+    "buyerAgreementVerified": false
+  },
+  "excludedRun": {
+    "directory": "replay-2026-10-10T05-51-33-007Z",
+    "reason": "Wrong CLI SHA label; preserved and explicitly withdrawn; clean exact-SHA rerun used"
+  },
+  "limitations": [
+    "No deployment-start-to-head complete history; each sample explicitly shifts configured source starts to its first captured block.",
+    "One public provider; receipts/events parity does not prove independently complete provider data.",
+    "No mainnet class upgrade or fork observed; upgrade/fork/error scenarios are local fixtures or controlled faults.",
+    "No production order or trade in captured registered events; positive25-item preflight is synthetic LOCAL data with injected direct-read responses.",
+    "Short samples and bursts on one shared local workstation do not establish sustained capacity, production freshness or an accepted SLO.",
+    "Payload bytes are decoded HTTP bodies, not wire-transfer or provider-billed bytes.",
+    "The real-network four-block cycle is pinned to intermediatea1805a4; final code uses recorded-data replay and local API/metadata validation."
+  ]
+}

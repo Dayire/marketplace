@@ -30,13 +30,17 @@ writes only metadata, jobs, attributes and media; it cannot change ownership.
 Schema migrations use a separate administrator connection, never a runtime role.
 Migrations are checksummed; add a new migration instead of editing applied SQL.
 
-Schema migration 4 adds the discovery collection catalog and source coverage
+Schema migration 5 adds the discovery collection catalog and source coverage
 tables. It seeds existing chain-bound collection identities and progress without
 rewriting market, application or media rows. Existing catalog evidence is retained
-on repeated initialization. New PostgreSQL runtimes require migration 4 before
+on repeated initialization. Additive discovery migrations continue through 11;
+upstream image-source migration 4 keeps its original checksum. New runtimes require
+every recorded version through 11 before
 startup. Run the administrator migration and re-provision the existing runtime
-roles so API/index roles receive grants on the new tables; metadata permissions
-remain limited to their existing tables. Re-provisioning is an operator deployment
+roles so API/index roles receive grants on the new tables; metadata receives narrow
+read access to pinned catalog/class/progress evidence and balances, while its write
+permissions remain limited to metadata/jobs/media. All roles may read the migration
+ledger. Re-provisioning is an operator deployment
 step and requires the existing private role credentials. No runtime service runs
 DDL or receives application permissions for discovery writes.
 
@@ -46,7 +50,7 @@ unchanged. Catalog and coverage are rebuildable chain data; their undo rows shar
 `chain.undo`. Visibility keys in `app.app_meta` are durable application policy and
 survive rewind/cutover. Operator catalog endpoints report coverage only for their
 requested source; public trading readiness and current allowlists retain their
-existing authority. The foundation is not automatic discovery or rollout evidence.
+existing authority. Migration alone does not establish discovery or rollout coverage.
 
 Pools default to 10 API connections and 4 per worker in Railway. Read requests
 hold one repeatable-read snapshot. Projection transactions share a short advisory
@@ -74,6 +78,84 @@ For a fresh non-production database, supply `DATABASE_URL` through a private loc
 environment and run `pnpm backend:pg initialize --registry <registry.json> --chain
 <chain>`. Provision separate roles before exposing HTTP. Do not initialize or
 replace an existing production database to bypass identity checks.
+
+## Automatic catalog indexing
+
+Enable `MARKETPLACE_CATALOG_ENABLED=true` on the index worker only after migrating
+and provisioning the compatible API/index/metadata roles. Keep the existing
+background and identity controls. One index process holds the chain-writer lease
+and interleaves live acquisition, discovery, classification and persistent jobs.
+Do not run a separate `discover` worker against the same database at the same time.
+The standalone discovery mode remains useful for an isolated validation database.
+
+| Catalog control | Default | Work bounded per cycle |
+| --- | --- | --- |
+| `MARKETPLACE_INDEX_WINDOW` | 16 | Shared live blocks |
+| `MARKETPLACE_DISCOVERY_SPAN` | 16 | Historical state updates |
+| `MARKETPLACE_DISCOVERY_EMITTERS` | `false` | Shared live acquisition already records unknown emitters |
+| `MARKETPLACE_CATALOG_CLASSIFY_LIMIT` | 8 | Candidate classifications, concurrency 2 |
+| `MARKETPLACE_CATALOG_BACKFILL_WINDOW` | 4 | One collection's historical block slice |
+| `MARKETPLACE_CATALOG_QUEUE_LIMIT` | 8 | Newly queued positive candidates |
+
+The four-block default follows one measured public dense-history pass, not a
+production freshness guarantee. Global event acquisition also enforces the
+configured event/emitter budgets. `WINDOW_EVENTS_DENSE` leaves the checkpoint
+unadvanced; reduce the slice or revise the measured provider budget before retry.
+Historical depth, page density, RPC latency and retries can dominate a cycle even
+when the block count is small. Monitor wall time and logical RPC calls as well as
+blocks/second. A CLI `once` is one bounded cycle; CLI `backfill` catches the shared
+live scanner to its stop/head and does not certify every independent source job.
+
+Jobs and committed source progress survive restart. Jobs rotate fairly; a local
+failure does not overwrite healthy global RPC status. A terminal failed job stays
+failed for diagnosis. After correcting a transient provider problem, stop the
+index writer and requeue a supported source against the current canonical head:
+
+```sh
+CATALOG_RETRY_ADDRESS=0xREPLACE_WITH_REVIEWED_SOURCE node --env-file=.env.backend --input-type=module - <<'JS'
+import { runtime } from './services/marketplace-backend/src/runtime.mjs';
+import { enqueueBackfill } from './services/marketplace-backend/src/backfill.mjs';
+const { store, config } = await runtime();
+let release;
+try {
+  release = await store.acquireIndexerLease?.();
+  const head = await store.head();
+  if (!head) throw new Error('A canonical journal anchor is required');
+  console.log(JSON.stringify(await enqueueBackfill(store, config, {
+    collection: process.env.CATALOG_RETRY_ADDRESS, target: head.number, allowConcurrent: true,
+  })));
+} finally { if (release) await release(); await store.close(); }
+JS
+```
+
+Restart the compatible index worker afterward. Requeueing resumes committed source
+progress; it does not resolve quarantined raw events, unknown implementations or a
+history gap. Repair and verify that evidence before replay/promotion. Never remove
+a gap merely to obtain readiness. A discovered source promotes only after catch-up,
+canonical anchor checks and matching bounded ownership/balance reconciliation.
+
+Track operator catalog states and source starts/hashes/gaps, replay generations,
+classification reasons, quarantine first/last positions, job cursor/error/age,
+metadata backlog/lease failures, RPC throttling and index cycle time. Alert on a
+stopped writer or stale observation, canonical/identity mismatch, persistent local
+job failure, decode uncertainty and lease loss. Account evidence is page-scoped;
+empty pages do not prove the account has no other NFTs. Partial reconciliation is
+not complete supply or holder enumeration.
+
+Stage against an isolated snapshot, compare existing Realms ownership/orders and
+preflight with the current base, rehearse interruption/restart, restore/replay and
+provider failures, and retain application/media digests. Agree provider capacity,
+cost inputs and numeric service targets before production promotion. The catalog
+flag does not authorize collection visibility, identity verification or settlement.
+Keep the canonical plan's deployment/security/wallet/soak gates in force.
+
+To suspend automatic discovery/backfills, set the catalog flag to `false` on the
+same compatible build and restart the index worker. This retains the visibility
+and ERC-1155 read guards, existing application policy and additive schema. Discovered
+sources then become stale explicitly as the configured scanner advances. An older
+API lacking those guards is not an approved rollback target. For a database restore,
+freeze writers and preserve/reconcile the latest application/media state; a stale
+chain snapshot must never replace newer user-owned records silently.
 
 ## Railway provisioning
 
@@ -308,3 +390,5 @@ JSON control-character compatibility flag.
 workers. Pinata was tested as the image gateway for this expansion after the prior
 public gateway returned HTTP 429. Browser image requests still use our cached
 asset API. Apply migration 3 with the administrator role before the rollout.
+
+The [10 October bounded mainnet/recovery measurements](evidence/2026-10-10-nft-mainnet-shadow-measurements.md) record actual captured windows, sampled compatibility, local write/RPC costs, controlled recovery and proposed backfill budgets. They leave full history, sustained production targets and owner acceptance open.

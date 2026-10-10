@@ -48,13 +48,17 @@ User confirmed inclusive buyer pricing, token-order royalty snapshots, capped fi
 The user selected Loot Chests, Cosmetics and Golden Token alongside Realms.
 The candidate `config/marketplace/registry.expansion.json` pins their contract
 classes and historical start blocks. Read-only RPC probes confirm ERC-721 and
-ERC-2981 support; sampled royalties are 500 bps. Loot Chests and Cosmetics expose
+ERC-2981 support; all 7,283 live tokens across the three new collections were
+checked at block 16061532 with a 10,000-unit sale quote and a maximum 500-bps royalty. Loot Chests and Cosmetics expose
 `token_is_locked`, which preflight must check at the same pinned block as ownership.
 The UI uses reviewed royalty ceilings and displays minimum seller proceeds;
 no editable royalty field is reintroduced. Existing Realms orders retain zero
-royalties. Expansion rollout is in progress: separate backfill, multi-collection
-supply/ownership/approval reconciliation, atomic projection cutover preserving
-application data/media, then administrator allowlisting and live verification.
+royalties. The separate backfill passed supply/ownership/approval reconciliation
+for all 12,415 live NFTs. Production projections were atomically replaced at block
+16093785, preserving application data and cached media. Administrator allowlisting
+for all three new collections succeeded at block 16093977. Metadata caching
+continues in the background; rollout evidence and Railway deployment IDs are in
+[the production record](evidence/collection-rollout-2026-10-09.json).
 
 ### Starknet-wide NFT indexing — epic #108
 
@@ -63,28 +67,37 @@ mainnet catalog through discovery foundations (#109–111), automatic ERC-721
 indexing (#112–115), then legacy/ERC-1155 coverage and operational evidence
 (#116–118). Sepolia is for controlled validation. Discovery, indexing, visibility,
 identity verification and settlement eligibility are independent decisions.
-ERC-1155 holdings are future indexing work; ERC-1155 settlement, permissionless
+ERC-1155 holdings are indexing work; ERC-1155 settlement, permissionless
 trading activation and external-venue sales decoders are excluded.
 
-First contribution, 10 October 2026: the #109 foundation adds PostgreSQL migration
-4, a chain/address collection catalog, canonical-position/classification/decoder
-evidence, replay generations, per-source coverage starts/checkpoints/gaps and
-authenticated operator reads. Existing registry entries seed as `unknown` or
-`syncing`; migration does not infer successful NFT classification or reconciliation.
-Configured sources continue using the existing scanner's progress. New evidence
-and explicit coverage share the ordered writer transaction and rewind journal.
-Visibility and verification remain durable application policy; tradability is
-derived from the existing registry and settlement allowlist. Discovered contracts
-are not automatically added to either. This implementation is local contribution
-work, not a production deployment or closure of the epic.
+Local contribution, 10 October 2026: the implementation covers discovery and
+classification, canonical ABI selection, independent collection jobs, shared live
+acquisition, bounded metadata, explicit public visibility and ERC-1155 balances.
+It builds on the attributed discovery work in PR #122. PostgreSQL migrations
+5–11 add the catalog, discovery anchors, class evidence, jobs, balances and indexed
+reconciliation lookups. Upstream migrations 1–4 retain their applied checksums;
+an integration test upgrades an existing migration-4 database without losing
+application choices or media. Runtime roles require the current schema and never
+perform DDL.
 
-Automatic deployment/upgrade discovery, classifier probes, historical decoder
-selection, independent backfill jobs, shared live acquisition, metadata scheduling,
-public discovered holdings and measured chain-wide coverage remain open. Historical
-RPC gaps and custom contracts must remain explicit. Complete token coverage needs
-reconciliation evidence beyond an address discovery. The existing Realms release
-and collection-expansion acceptance gates remain open as recorded below. Dates,
-capacity targets and cost estimates require provider/workload measurements.
+`MARKETPLACE_CATALOG_ENABLED=true` makes one index writer run healthy live sources
+first, then bounded discovery/classification and one persistent backfill slice.
+The default historical slice is four blocks. Positive indexing evidence does not
+change the settlement registry. A discovered source promotes only after canonical
+catch-up and a matching pinned owner/balance check. Unsupported signatures, class
+boundaries, provider history and raw events remain visible limitations. Matching
+owner samples without declared supply/global enumeration report partial confidence.
+See [legacy evidence](LEGACY-NFT-COVERAGE.md) and the
+[operational rollout](POSTGRES-OPERATIONS.md#automatic-catalog-indexing).
+
+The integrated backend passed 213 native and 78 real PostgreSQL tests. Public
+historical owner comparisons include Briq's Cairo 0 proxy and three Realms mints;
+the fungible ETH control is excluded. The operational evidence measures selected
+mainnet ranges, local shadow parity, RPC use, metadata and controlled recovery.
+This is bounded coverage, not an exhaustive chain replay or a production deployment.
+Numeric production targets still require release-owner agreement and a longer
+provider/workload observation window. Existing launch gates elsewhere in this plan
+continue to govern rollout.
 
 ### PostgreSQL migration — authorized 8 October 2026
 
@@ -360,6 +373,43 @@ against the fixture backend; not evidence of production validation:
 
 Still open from the table above: honest featured/trending labels beyond
 "recent sales", bulk portfolio actions, and notification links.
+
+### Link previews pass — 10 October 2026
+
+Implemented locally, covered by unit, renderer and Storybook browser tests, and
+checked against the fixture backend; not evidence of production validation:
+
+- Asset links unfurl as a generated card: artwork, collection, name, up to
+  seven traits and the price the asset page shows (cheapest fillable STRK
+  listing, otherwise the cheapest listing in the next configured currency;
+  unlisted assets show the top offer, then the last sale). Realms show only
+  resources; Loot Chests epoch and ID; Cosmetics epoch, rarity and type;
+  Golden Tokens the item number. The previous token image route failed to
+  render, and relative cached artwork URLs were dropped from metadata.
+- Collection links show banner art, floor, listed count and supply; every
+  other page uses a site-wide card. Image URLs carry a content version so a
+  price change yields a new URL for unfurlers that cache by URL; already
+  posted messages keep their original preview.
+- The server only reads backend-cached artwork, files in `public/` and inline
+  data URIs; it never fetches metadata origins. WebP/AVIF and uncached art
+  fall back to collection artwork rather than adding a transcoder.
+- The asset page has a Share menu, and an owner sees a share prompt once
+  their listing is indexed. Dismissing it hides it for that listing on that
+  device. Token preview data is cached for up to 60 seconds, so the prompt
+  says the price usually appears within a minute rather than immediately.
+  The share text prices from the holder's own listings, as the card does.
+- Cosmetics has a local collection image, a banner collage and a share
+  banner, so its cards, header and link previews no longer depend on IPFS
+  artwork.
+- Share rendering retries a failed font load, API client import or public
+  file read on the next request instead of failing until restart.
+
+Remaining evidence: share real launch-collection assets from staging to
+Discord, X and Telegram; measure how much artwork is WebP/AVIF or uncached;
+confirm SVG artwork containing text renders in the production container,
+which may lack system fonts; and exercise the owner prompt with a real
+wallet. The prompt follows the page's STRK listing query, so an owner whose
+only listing is in another currency does not see it.
 
 ## 8. Build sequence and gates
 
@@ -783,3 +833,5 @@ Unresolved release inputs: initial administrator and transaction fee ceiling; ST
 - [Existing-system assessment](./INDEXER-CURRENT-STATE-2026-10-06.md) and [contract findings](./CONTRACT-ASSESSMENT-2026-10-06.md): historical evidence, not current implementation instructions.
 
 This master plan controls release scope and delivery status. Contract/backend documents provide detailed design; dated assessments and the OpenSea comparison preserve evidence and do not override the current plan.
+
+The [10 October bounded mainnet/recovery measurements](evidence/2026-10-10-nft-mainnet-shadow-measurements.md) record actual captured windows, sampled compatibility, local write/RPC costs, controlled recovery and proposed backfill budgets. They leave full history, sustained production targets and owner acceptance open.

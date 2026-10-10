@@ -72,7 +72,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       process.once(signal, () => group.stop());
     process.exitCode = await group.done;
   } else {
-    if (background && (!rpc || !config.collections.length))
+    if (background && (!rpc || (!config.collections.length && env.MARKETPLACE_CATALOG_ENABLED !== 'true')))
       throw new Error(
         "Background workers require an RPC URL and a reviewed collection registry.",
       );

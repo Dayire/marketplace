@@ -1,4 +1,5 @@
 import { projectEvent } from "./projection.mjs";
+import { validHistoricalAnchor } from "./backfill-anchor.mjs";
 import { DatabaseSync, backup } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
@@ -160,7 +161,18 @@ export class Store {
           const prior = this.db
             .prepare("SELECT hash FROM blocks WHERE number=?")
             .get(block.number - 1);
-          if (!prior || prior.hash !== block.parentHash)
+          let continuous = prior?.hash === block.parentHash;
+          if (!prior) {
+            const anchor = block.backfillAnchor;
+            const oldest = this.db
+              .prepare("SELECT MIN(number) AS number FROM blocks")
+              .get().number;
+            const target = Number.isSafeInteger(anchor?.number)
+              ? this.canonicalBlock(anchor.number)
+              : null;
+            continuous = validHistoricalAnchor(block, oldest, target);
+          }
+          if (!continuous)
             throw new ApiError(
               "CHAIN_GAP",
               "Backfill range is not contiguous with indexed history.",

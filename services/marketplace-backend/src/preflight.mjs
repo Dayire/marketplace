@@ -28,7 +28,7 @@ export async function preflight(store, rpc, config, input) {
     for (const [index] of items.entries()) {
       const indexed = await store.get("order", keys[index]);
       if (!indexed?.collection) continue;
-      const record = store.get(
+      const record = await store.get(
         "catalog_collection",
         collectionKey(config.chainId, address(indexed.collection)),
       );

@@ -16,6 +16,42 @@
           "metadata": {
             "enabled": true
           }
+        },
+        {
+          "address": "0x0572fe34a769058c62a66f0c4854d08ccfd21fcbb4f0b1685a1868b84c6ee266",
+          "name": "Loot Chests",
+          "standard": "ERC721",
+          "startBlock": 1517708,
+          "metadata": {
+            "enabled": true
+          },
+          "classHash": "0x181c70595dd7db697c37ceb35c74fab69a037836b99cc80c17fd92a16289e26",
+          "royaltyBps": 500,
+          "transferLockSelector": "0x1ceece344861e475af04427727404ca6bf0d669e186f979ed503e468d00d1de"
+        },
+        {
+          "address": "0x01f36515d7d307c9d3e41df48f29e9a6b4bbc445d0fbdbbce944a4678cd52b02",
+          "name": "Cosmetics",
+          "standard": "ERC721",
+          "startBlock": 1889136,
+          "metadata": {
+            "enabled": true
+          },
+          "classHash": "0x3786852cc518b276af050047b663b7d750f697dbb9e7c0046c06521d533c047",
+          "royaltyBps": 500,
+          "transferLockSelector": "0x1ceece344861e475af04427727404ca6bf0d669e186f979ed503e468d00d1de"
+        },
+        {
+          "address": "0x027838dea749f41c6f8a44fcfa791788e6101080c1b3cd646a361f653ad10e2d",
+          "name": "Golden Token",
+          "standard": "ERC721",
+          "startBlock": 2021283,
+          "metadata": {
+            "enabled": true,
+            "repairControlCharacters": true
+          },
+          "classHash": "0x2902aba920acb9478e9a01f46aa5adca58d4d31eba91a1bdb3b6d0020595885",
+          "royaltyBps": 500
         }
       ],
       "currencies": [

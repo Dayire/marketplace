@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import { address, uint, boundedInteger, ApiError } from "../domain.mjs";
 import { marketStatus } from "../status.mjs";
+import { collectionKey } from "../collection-catalog.mjs";
+import { publicChainState } from "../catalog-state.mjs";
 const tokenBody =
   "t.body || jsonb_build_object('metadata','{}'::jsonb,'attributes','[]'::jsonb) || COALESCE(m.body,'{}'::jsonb)";
 const canonical = (value) =>
@@ -33,19 +35,38 @@ export class PgCatalog {
     this.config = config;
   }
   async assertVisible(collection) {
-    if (
-      (
-        await this.store.query(
-          "SELECT 1 FROM app.moderation WHERE collection=$1",
-          [address(collection)],
-        )
-      ).rowCount
-    )
+    const p = parameters(), a = p.bind(address(collection));
+    if (!(await this.store.query(`SELECT ${this.visibilityWhere(a, p)} AS visible`, p.values)).rows[0].visible)
       throw new ApiError(
         "CONTENT_RESTRICTED",
         "Collection is restricted pending review",
         404,
       );
+  }
+  visibilityWhere(column, p) {
+    const chain = p.bind(this.config.chainId ? collectionKey(this.config.chainId, "0").split(":")[0] : null),
+      configured = p.bind((this.config.collections ?? []).map((c) => address(c.address)));
+    return `(NOT EXISTS(SELECT 1 FROM app.moderation h WHERE h.collection=${column}) AND
+      COALESCE((SELECT CASE WHEN jsonb_typeof(v.value->'visible')='boolean' THEN (v.value->>'visible')::boolean END
+        FROM app.app_meta v WHERE v.key='catalog_visibility:' || ${chain} || ':' || ${column}),
+        ${column}=ANY(${configured}::text[]) OR (EXISTS(SELECT 1 FROM market.collections registered WHERE registered.id=${column})
+          AND NOT EXISTS(SELECT 1 FROM chain.collection_catalog discovered WHERE discovered.address=${column}
+            AND (${chain}::text IS NULL OR discovered.chain_id=${chain})))))`;
+  }
+  standardWhere(column, p, standard) {
+    const chain = p.bind(this.config.chainId ? collectionKey(this.config.chainId, "0").split(":")[0] : null),
+      expected = p.bind(standard);
+    return `NOT EXISTS(SELECT 1 FROM chain.collection_catalog current_source
+      WHERE current_source.address=${column} AND current_source.chain_id=${chain}
+      AND current_source.standard IN ('ERC721','ERC1155') AND current_source.standard<>${expected})`;
+  }
+  async withSources(page, collection) {
+    const addresses = [...new Set([
+      ...(collection ? [address(collection)] : []),
+      ...page.items.map((item) => item.collection),
+    ])].slice(0, 100);
+    const sources = await Promise.all(addresses.map(async (a) => ({ collection: a, ...await this.chainState(a) })));
+    return { ...page, sourceScope: "page", sources };
   }
   async page(
     sql,
@@ -112,6 +133,8 @@ export class PgCatalog {
             }),
           ).toString("base64url")
         : null,
+      basis: "indexed",
+      generation,
     };
   }
   async tokenWhere(collection, o = {}, omit) {
@@ -119,7 +142,8 @@ export class PgCatalog {
     const p = parameters(),
       clauses = [
         "NOT t.burned",
-        "NOT EXISTS(SELECT 1 FROM app.moderation h WHERE h.collection=t.collection)",
+        this.visibilityWhere("t.collection", p),
+        this.standardWhere("t.collection", p, "ERC721"),
       ];
     if (collection) clauses.push(`t.collection=${p.bind(address(collection))}`);
     if (o.collections) {
@@ -200,7 +224,7 @@ export class PgCatalog {
       throw new ApiError("INVALID_SORT", "Unsupported sort");
     if (o.listedOnly === true || o.listedOnly === "true")
       p.clauses.push("best.body IS NOT NULL");
-    return this.page(
+    const page = await this.page(
       `SELECT t.id,${tokenBody} AS body,${expr} AS sort_value,best.body AS best FROM market.tokens t LEFT JOIN market.token_metadata m ON m.id=t.id LEFT JOIN LATERAL(SELECT o.body,o.buyer_debit AS price FROM market.orders o WHERE ${listing} ORDER BY o.buyer_debit,o.id LIMIT 1) best ON true WHERE ${p.clauses.join(" AND ")}`,
       p.values,
       {
@@ -215,9 +239,14 @@ export class PgCatalog {
         descending: sort.endsWith("desc") || sort === "recent",
       },
     );
+    return this.withSources(page, collection);
   }
   async token(collection, id) {
     await this.assertVisible(collection);
+    const record = this.config.chainId
+      ? await this.store.get("catalog_collection", collectionKey(this.config.chainId, collection)) : null;
+    if (record?.standard === "ERC1155")
+      throw new ApiError("NOT_FOUND", "ERC721 token not indexed", 404);
     const row = await this.store.get(
       "token",
       `${address(collection)}:${uint(id)}`,
@@ -225,6 +254,7 @@ export class PgCatalog {
     if (!row) throw new ApiError("NOT_FOUND", "Token not indexed", 404);
     return {
       ...row,
+      ...await this.chainState(collection),
       listings: (
         await this.orders(collection, {
           tokenId: id,
@@ -238,10 +268,35 @@ export class PgCatalog {
   holdings(account, o = {}) {
     return this.tokens(o.collection, { ...o, owner: account });
   }
+  async balances(account, o = {}) {
+    if (o.collection) await this.assertVisible(o.collection);
+    if (o.sort && o.sort !== "token-asc" && o.sort !== "token-desc")
+      throw new ApiError("INVALID_QUERY", "Balances support token-asc or token-desc");
+    const p = parameters(), where = ["b.balance>0", `b.owner=${p.bind(address(account))}`,
+      this.visibilityWhere("b.collection", p), this.standardWhere("b.collection", p, "ERC1155")];
+    if (o.collection) where.push(`b.collection=${p.bind(address(o.collection))}`);
+    if (o.collections) {
+      if (!Array.isArray(o.collections) || o.collections.length > 100)
+        throw new ApiError("INVALID_QUERY", "At most 100 collections");
+      where.push(`b.collection=ANY(${p.bind(o.collections.map(address))}::text[])`);
+    }
+    if (o.tokenIds) {
+      if (!Array.isArray(o.tokenIds) || o.tokenIds.length > 100)
+        throw new ApiError("INVALID_QUERY", "Invalid token IDs");
+      where.push(`b.token_id=ANY(${p.bind(o.tokenIds.map((id) => uint(id)))}::numeric[])`);
+    }
+    const page = await this.page(`SELECT b.id,b.body || jsonb_build_object('id',b.id,'standard','ERC1155',
+      'metadata','{}'::jsonb,'attributes','[]'::jsonb) || COALESCE(m.body,'{}'::jsonb) AS body,
+      b.token_id AS sort_value FROM market.erc1155_balances b
+      LEFT JOIN market.token_metadata m ON m.id=b.collection || ':' || b.token_id::text WHERE ${where.join(" AND ")}`,
+    p.values, { ...o, descending: o.sort === "token-desc", scope: { ...o, resource: "balances", owner: address(account),
+      cursor: undefined, limit: undefined } });
+    return this.withSources({ ...page, standard: "ERC1155" }, o.collection);
+  }
   async orders(collection, o = {}) {
     if (collection) await this.assertVisible(collection);
     const p = parameters(),
-      where = ["true"];
+      where = [this.visibilityWhere("o.collection", p)];
     for (const [column, value] of Object.entries({
       collection: collection ? address(collection) : undefined,
       token_id: o.tokenId != null ? uint(o.tokenId) : undefined,
@@ -336,22 +391,32 @@ export class PgCatalog {
     return [...groups.values()];
   }
   async collections() {
+    const p = parameters(),
+      chain = p.bind(this.config.chainId ? collectionKey(this.config.chainId, "0").split(":")[0] : null),
+      visible = this.visibilityWhere("c.address", p);
     const rows = (
       await this.store.query(
-        "SELECT c.body FROM market.collections c WHERE NOT EXISTS(SELECT 1 FROM app.moderation h WHERE h.collection=c.id) ORDER BY c.id",
+        `SELECT c.address FROM (SELECT id AS address FROM market.collections UNION
+          SELECT address FROM chain.collection_catalog WHERE chain_id=${chain}) c
+          WHERE ${visible} ORDER BY c.address LIMIT 1000`, p.values,
       )
     ).rows;
-    return Promise.all(rows.map((r) => this.collection(r.body.address)));
+    return Promise.all(rows.map((r) => this.collection(r.address)));
   }
   async collection(raw) {
     const a = address(raw);
     await this.assertVisible(a);
-    const c = await this.store.get("collection", a);
+    const saved = await this.store.get("collection", a),
+      record = this.config.chainId ? await this.store.get("catalog_collection", collectionKey(this.config.chainId, a)) : null,
+      c = saved ?? (record ? { address: a, name: record.classification?.name ?? a } : null);
     if (!c) throw new ApiError("NOT_FOUND", "Collection not indexed", 404);
     const tokenCount = (
       await this.store.query(
-        "SELECT COUNT(*)::text AS count FROM market.tokens WHERE collection=$1 AND NOT burned",
-        [a],
+        `SELECT COUNT(*)::text AS count FROM (SELECT token_id FROM market.tokens WHERE collection=$1 AND NOT burned
+          AND ($2::text IS NULL OR $2='ERC721')
+          UNION SELECT token_id FROM market.erc1155_balances WHERE collection=$1 AND balance>0
+          AND ($2::text IS NULL OR $2='ERC1155')) observed`,
+        [a, ["ERC721", "ERC1155"].includes(record?.standard) ? record.standard : null],
       )
     ).rows[0].count;
     const floors = [];
@@ -383,6 +448,7 @@ export class PgCatalog {
     ).rows[0];
     return {
       ...c,
+      ...await this.chainState(a),
       verified: verification?.value?.verified ?? false,
       tokenCount,
       listingCount,
@@ -390,8 +456,9 @@ export class PgCatalog {
     };
   }
   async activity(o = {}) {
+    if (o.collection) await this.assertVisible(o.collection);
     const p = parameters(),
-      where = ["true"];
+      where = [this.visibilityWhere("a.collection", p)];
     for (const key of ["collection", "tokenId", "type"])
       if (o[key] != null) {
         const column = {
@@ -436,7 +503,53 @@ export class PgCatalog {
         )
         .slice(0, 20),
       tokens: (await this.tokens(null, { q, limit: 20 })).items,
+      discoveredCollections: await this.discoveredCollections(q),
     };
+  }
+  async chainState(raw) {
+    const a = address(raw), key = this.config.chainId ? collectionKey(this.config.chainId, a) : null;
+    const [record, saved, progress, rpc, generation, reconciliation] = await Promise.all([
+      key ? this.store.get("catalog_collection", key) : null,
+      key ? this.store.get("source_coverage", key) : null,
+      this.store.get("progress", a), this.store.get("status", "rpc"), this.store.generation(),
+      this.store.get("status", `reconciliation:${a}`),
+    ]);
+    const checkpoint = saved?.mode !== "configured_scan" && saved ? saved.block : progress?.block;
+    return publicChainState(this.config, a, { record, saved, progress, rpc, generation, reconciliation,
+      canonicalHash: checkpoint != null ? (await this.store.canonicalBlock(checkpoint))?.hash : null });
+  }
+  async discoveredCollections(q) {
+    const p = parameters(), chain = p.bind(this.config.chainId ? collectionKey(this.config.chainId, "0").split(":")[0] : null),
+      visible = this.visibilityWhere("c.address", p), needle = p.bind(`%${q.toLowerCase().replace(/[\\%_]/g, "\\$&")}%`);
+    const rows = (await this.store.query(`SELECT c.body FROM chain.collection_catalog c WHERE c.chain_id=${chain}
+      AND c.standard IN ('ERC721','ERC1155') AND ${visible}
+      AND (lower(c.address) LIKE ${needle} OR lower(COALESCE(c.body->'classification'->>'name','')) LIKE ${needle})
+      ORDER BY c.id LIMIT 20`, p.values)).rows;
+    return Promise.all(rows.map(async ({ body: record }) => ({
+      address: record.address, state: record.state, standard: record.standard,
+      method: record.classification?.method ?? null, ...await this.chainState(record.address), basis: "chain",
+    })));
+  }
+  async coverage() {
+    const records = (await this.store.query(`SELECT body FROM chain.collection_catalog
+      WHERE chain_id=$1 ORDER BY id LIMIT 1000`,
+    [this.config.chainId ? collectionKey(this.config.chainId, "0").split(":")[0] : null])).rows.map((r) => r.body);
+    const entries = await Promise.all(records.map(async (record) => ({
+      address: record.address, state: record.state, standard: record.standard,
+      method: record.classification?.method ?? null,
+      reason: record.state === "failed" ? record.quarantine?.last?.message ?? record.classification?.uncertainty ?? "classification failed"
+        : record.state === "unsupported" ? record.classification?.evidence?.reason ?? record.classification?.uncertainty ?? "unsupported contract type" : null,
+      quarantine: record.quarantine ? { observations: record.quarantine.observations, last: record.quarantine.last } : null,
+      ...await this.chainState(record.address),
+    })));
+    const notIndexed = [];
+    for (const c of this.config.collections ?? [])
+      if ((await this.store.get("progress", address(c.address)))?.block == null)
+        notIndexed.push({ address: address(c.address), startBlock: c.startBlock ?? null });
+    const counts = {};
+    for (const entry of entries) counts[entry.state] = (counts[entry.state] ?? 0) + 1;
+    return { counts, unsupported: entries.filter((e) => e.state === "unsupported"),
+      quarantined: entries.filter((e) => e.quarantine), notIndexed, records: entries, truncated: records.length === 1000 };
   }
   async stats(collection, { currency, days = 7 } = {}) {
     const a = address(collection),

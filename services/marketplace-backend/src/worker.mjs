@@ -1,23 +1,25 @@
 import { createServer } from "node:http";
 import { runtime } from "./runtime.mjs";
-import { indexerOptions, discoveryOptions } from "./indexer-options.mjs";
+import { indexerOptions, discoveryOptions, catalogOptions } from "./indexer-options.mjs";
 import { scanOnce } from "./indexer.mjs";
 import { discoverOnce } from "./discovery-scan.mjs";
 import { classifyOnce } from "./classify-scan.mjs";
 import { refreshMetadata } from "./metadata.mjs";
+import { runIndexingCycle } from './source-cycle.mjs';
 const mode = process.argv[2];
 if (!["index", "metadata", "discover"].includes(mode))
   throw new Error("Choose index, metadata or discover");
 const { store, config, rpc } = await runtime();
+const catalogEnabled = process.env.MARKETPLACE_CATALOG_ENABLED === 'true' && mode === 'index';
 const scanOptions =
   mode === "index"
-    ? indexerOptions()
+    ? catalogEnabled ? catalogOptions() : indexerOptions()
     : mode === "discover"
       ? discoveryOptions()
       : null;
 const enabled = process.env.MARKETPLACE_BACKGROUND_ENABLED !== "false";
 // Discovery needs only the chain identity; the registry stays a separate gate.
-if (enabled && (!rpc || (mode !== "discover" && !config.collections.length)))
+if (enabled && (!rpc || (mode !== "discover" && !catalogEnabled && !config.collections.length)))
   throw new Error(
     "Enabled workers require an RPC and reviewed collection registry",
   );
@@ -79,7 +81,7 @@ try {
       try {
         const result =
           mode === "index"
-            ? await scanOnce(store, rpc, config, scanOptions)
+            ? catalogEnabled ? await runIndexingCycle(store, rpc, config, scanOptions) : await scanOnce(store, rpc, config, scanOptions)
             : mode === "discover"
               ? await discoverOnce(store, rpc, config, scanOptions)
               : await refreshMetadata(store, rpc, config, {

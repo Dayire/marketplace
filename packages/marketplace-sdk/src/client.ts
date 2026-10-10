@@ -4,10 +4,12 @@ import { createCurrencyRegistry } from "./currencies.js";
 import type {
   ApiCollection,
   ApiToken,
+  ApiBalance,
   ApiOrder,
   ApiPage,
   MarketConfig,
   IndexStatus,
+  SearchResults,
 } from "./types.js";
 import { createTrades } from "./trades.js";
 import {
@@ -367,13 +369,15 @@ export function createMarketplaceClient(options: MarketplaceOptions) {
     accounts: {
       holdings: (account: string, query: Query = {}) =>
         request<ApiPage<ApiToken>>(`/accounts/${account}/holdings`, query),
+      balances: (account: string, query: Query = {}) =>
+        request<ApiPage<ApiBalance>>(`/accounts/${account}/balances`, query),
       orders: (account: string, query: Query = {}) =>
         request<ApiPage<ApiOrder>>(`/accounts/${account}/orders`, query),
       activity: (account: string, query: Query = {}) =>
         request<ApiPage<Activity>>(`/accounts/${account}/activity`, query),
     },
     search: (q: string) =>
-      request<{ collections: ApiCollection[]; tokens: ApiToken[] }>("/search", {
+      request<SearchResults>("/search", {
         q,
       }),
     notifications: {

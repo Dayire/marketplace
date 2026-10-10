@@ -65,24 +65,24 @@ remains a development candidate inventory, not the initial deployment allowlist.
 Season Pass, Loot Chests, Cosmetics, Golden Token, Beasts and Adventurers are
 follow-up onboarding work. v1 trading remains ERC-721 with quantity one.
 
-Portfolio scope is holdings of registered collections, not every NFT on Starknet. Historical/legacy collections may be retained in internal evidence but excluded from discovery using explicit registry policy; never infer replacement collections from similar names.
+Portfolio scope includes explicitly visible indexed collections, with each source's coverage and reconciliation evidence. This does not imply complete Starknet holdings. Historical/legacy collections may be retained in internal evidence but excluded from public discovery using durable visibility policy; never infer replacement collections from similar names.
 
-### Future discovery catalog — epic #108, foundation #109
+### Discovery catalog — epic #108
 
 The separate Starknet-wide indexing epic extends the catalog boundary in stages;
 it does not expand settlement policy or declare the public portfolio chain-wide.
-Migration 4 adds `chain.collection_catalog` and `chain.source_coverage`, keyed by
+Migration 5 adds `chain.collection_catalog` and `chain.source_coverage`, keyed by
 canonical chain ID plus contract address. The catalog stores `unknown`, `candidate`,
 `syncing`, `indexed`, `unsupported` and `failed` states, NFT standard, deployment
 position, class-history intervals, classification evidence/uncertainty, decoder
 version and replay generation. Unknown transaction/event positions remain null.
-Classification and historical decoder selection are subsequent implementation
-issues; storing evidence does not establish that a classifier has run.
+Classification and historical decoder selection use pinned class/implementation
+ABIs. A record alone does not establish that classification has succeeded.
 
 Coverage stores start block, canonical checkpoint block/hash, observation time,
 replay generation and bounded, reason-bearing historical gaps. Configured records
 use `configured_scan` coverage and continue reading live `chain.progress`; new
-source jobs will write explicit `catalog` coverage. The catalog writer validates
+source jobs write explicit `catalog` coverage. The catalog writer validates
 canonical anchors and commits facts, progress and undo entries together under the
 existing projection lock. It may be called inside the block writer transaction;
 network acquisition stays outside it. Rewind restores evidence and coverage and
@@ -110,8 +110,40 @@ verification record in the chain-bound database. Tradable means the existing
 configured registry and settlement collection policy permit ERC-721 settlement;
 it is not an execution guarantee. Unknown/discovered records default to hidden,
 unverified and non-tradable. Indexer-role writes cannot set these policy fields.
-Public catalog/SDK/holdings expansion and visibility-management workflows belong
-to #115. No frontend changes are included in this foundation.
+Public collection/token/search/activity/holdings reads enforce this visibility
+policy. Operator `POST .../operator/collections/{address}` accepts a durable
+`visible` boolean for known catalog-only sources without adding them to trading.
+The additive `GET .../accounts/{address}/balances` route and SDK
+`accounts.balances()` return ERC-1155 token IDs and positive amounts as exact
+decimal strings. ERC-721 `holdings()` retains its existing token shape. Current
+reads exclude an earlier standard's retained projections after a classified
+standard change; historical activity remains available.
+
+Automatic indexing uses one chain-writer lease and runs the healthy shared live
+scan before bounded discovery, classification and one fair historical slice.
+Independent jobs persist committed source progress and pinned anchors; a restart
+or rewind resumes from the canonical projection rather than an old workflow cursor.
+Only supported positive evidence with verified deployment/class identity can become
+an indexing source. Discovered sources never use a guessed sequential-ID fast path.
+
+For each event-bearing canonical block, the scanner resolves the class and proxy
+implementation at that block and its parent. A unique matching `Upgraded` receipt
+provides a transaction/event boundary; otherwise same-block decoder uncertainty is
+quarantined. Unknown and unsupported raw events remain replayable. Transfers do not
+create external sale/volume evidence. See [legacy coverage](LEGACY-NFT-COVERAGE.md).
+
+Promotion requires source progress at the live canonical head plus bounded direct
+owner/balance reconciliation. Matching samples retain partial confidence unless
+declared NFT supply and complete global enumeration also agree. Collection and
+account page responses expose source readiness, generation and reconciliation
+limitations. Account responses explicitly scope evidence to that bounded page.
+
+Metadata candidates are selected fairly before global limits, with deduplicated
+ERC-1155 token IDs, bounded range expansion and durable leases. URI aliases and
+felt/u256 inputs are proven by pinned ABI signatures and serialized as hexadecimal
+RPC felts. Unsupported signatures and class changes fail completion safely; URL,
+size, timeout and retry limits apply before metadata or artwork can be published.
+No frontend presentation change is included in this contribution.
 
 ## 3. Architecture
 
@@ -420,3 +452,5 @@ Enforce the package contract with a clean runtime test outside the frontend's `n
 - [Starknet transaction documentation](https://docs.starknet.io/learn/protocol/transactions): transaction execution/finality context; application submission and index-reflection states are our design choices.
 
 All proposed service limits, rollout policies, performance targets and module interfaces above are design decisions, not measurements or claims about the existing implementation.
+
+The [10 October bounded mainnet/recovery measurements](evidence/2026-10-10-nft-mainnet-shadow-measurements.md) record actual captured windows, sampled compatibility, local write/RPC costs, controlled recovery and proposed backfill budgets. They leave full history, sustained production targets and owner acceptance open.

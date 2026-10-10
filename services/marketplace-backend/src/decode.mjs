@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { selectorFromName } from "./starknet-selector.mjs";
 import { address, uint, fromU256, orderKey, ApiError } from "./domain.mjs";
 export const SELECTORS = JSON.parse(
   readFileSync(
@@ -34,6 +35,14 @@ const NFT_EVENT_NAMES = new Set([
   "ApprovalForAll",
   "MetadataUpdate",
   "BatchMetadataUpdate",
+  "URI",
+]);
+// These events do not change NFT ownership, quantity, approval or metadata.
+// A name is insufficient: resolution below also requires the active class ABI.
+const UNMODELED_EVENTS = new Set([
+  "Upgraded", "AdminChanged", "OwnershipTransferred", "OwnershipTransferStarted",
+  "RoleGranted", "RoleRevoked", "RoleAdminChanged", "Paused", "Unpaused",
+  "DelegateChanged", "DelegateVotesChanged",
 ]);
 function reader(values) {
   let i = 0;
@@ -186,7 +195,8 @@ export function decodeEvent(raw, config, summary = null) {
   }
   if (!config.collections.some((c) => address(c.address) === source))
     return null;
-  const resolved = resolveCollectionEvent(raw.keys);
+  const resolved = resolveCollectionEvent(raw.keys, summary);
+  if (resolved.unmodeled) return null;
   if (!resolved.name) {
     // Without ABI context the legacy "not modeled" answer stays a null drop;
     // with context an unsupported selector is refused so the scanner can
@@ -200,25 +210,41 @@ export function decodeEvent(raw, config, summary = null) {
     );
   }
   const members = membersFor(summary, resolved.name);
-  const event = members
+  if (summary && (!declaresEvent(summary, resolved.name) || (summary.requireAbiLayout && !members)))
+    throw new ApiError(
+      UNKNOWN_COLLECTION_EVENT,
+      `Collection ABI does not prove the ${resolved.name} event layout.`,
+      409,
+      { collection: source, classHash: summary.classHash ?? null, event: resolved.name },
+    );
+  const event = resolved.name === "URI"
+    ? decodeCairo0Uri(raw, source, resolved, members)
+    : members
     ? decodeWithMembers(raw, source, resolved, members)
     : decodeFlattened(raw, source, resolved);
   return { ...event, raw, decoderVersion: DECODER_CAPABILITY };
 }
 
 /** Flat selector or configured enum wrapper -> canonical NFT event name. */
-function resolveCollectionEvent(keys) {
+function resolveCollectionEvent(keys, summary) {
   const key0 = BigInt(keys[0]).toString();
   const flat = selectorNames.get(key0);
   if (flat && NFT_EVENT_NAMES.has(flat))
     return { name: flat, consumedKeys: 1 };
+  const abiName = (key) => summary?.events?.find((event) =>
+    !event.enum && (NFT_EVENT_NAMES.has(event.name) || UNMODELED_EVENTS.has(event.name)) &&
+    BigInt(selectorFromName(event.name)).toString() === key)?.name;
+  const known = abiName(key0);
+  if (known) return { name: known, consumedKeys: 1, unmodeled: UNMODELED_EVENTS.has(known) };
   const wrapper = eventEnumWrappers.get(key0);
   if (wrapper) {
     if (keys.length < 2)
       throw new ApiError("INVALID_EVENT", "Truncated enum event.");
-    const variant = selectorNames.get(BigInt(keys[1]).toString());
+    const variant = selectorNames.get(BigInt(keys[1]).toString()) ?? abiName(BigInt(keys[1]).toString());
     if (variant && NFT_EVENT_NAMES.has(variant))
       return { name: variant, consumedKeys: 2, enumName: wrapper };
+    if (variant && UNMODELED_EVENTS.has(variant) && declaresEvent(summary, variant))
+      return { name: variant, consumedKeys: 2, enumName: wrapper, unmodeled: true };
     return { unsupported: BigInt(keys[1]).toString() };
   }
   return { unsupported: BigInt(keys[0]).toString() };
@@ -227,6 +253,11 @@ function resolveCollectionEvent(keys) {
 const membersFor = (summary, name) =>
   summary?.events?.find((e) => e.name === name && Array.isArray(e.members))
     ?.members ?? null;
+const declaresEvent = (summary, name) =>
+  summary.events?.some((event) =>
+    event.name === name ||
+    (event.enum && event.variants?.some((variant) => variant.name === name)),
+  ) ?? false;
 
 const normalizeMember = (name) => String(name).toLowerCase().replaceAll("_", "");
 const MEMBER_FIELDS = {
@@ -253,6 +284,22 @@ const DECIMAL_FIELDS = new Set([
   "ids",
   "values",
 ]);
+const ADDRESS_FIELDS = new Set(["from", "to", "owner", "spender", "operator"]);
+
+/** Deployed Briq/OZ Cairo 0 URI(value_len, value*, Uint256 id) notification. */
+function decodeCairo0Uri(raw, source, resolved, members) {
+  if (!members || members.length !== 3 || members.some((member) => member.kind !== "data") ||
+    normalizeMember(members[0].name) !== "valuelen" ||
+    normalizeMember(members[1].name) !== "value" || !/^felt\*$/.test(members[1].type) ||
+    !["id", "tokenid"].includes(normalizeMember(members[2].name)) ||
+    !/u256|uint256/i.test(members[2].type))
+    throw new ApiError(UNKNOWN_COLLECTION_EVENT, "Unsupported URI event layout.", 409);
+  const length = BigInt(uint(raw.data[0], 64));
+  if (length > 4096n || raw.keys.length !== resolved.consumedKeys || raw.data.length !== Number(length) + 3)
+    throw new ApiError("INVALID_EVENT", "Malformed or oversized URI notification.");
+  for (const felt of raw.data.slice(1, Number(length) + 1)) uint(felt, 252);
+  return { type: "metadata_update", collection: source, tokenId: fromU256(...raw.data.slice(-2)), decoder: "cairo0-uri.v1" };
+}
 
 /**
  * ABI-member-driven layout: key members come from keys, data members from
@@ -266,6 +313,12 @@ function decodeWithMembers(raw, source, resolved, members) {
   };
   const values = {};
   for (const member of members) {
+    const normalized = normalizeMember(member.name);
+    const field = resolved.name === "Approval" && normalized === "approved"
+      ? "spender"
+      : MEMBER_FIELDS[normalized];
+    if (!field || Object.hasOwn(values, field))
+      throw new ApiError("INVALID_EVENT", `Unsupported or duplicate event field ${member.name}.`);
     const stream = streams[member.kind === "key" ? "key" : "data"];
     const take = (count) => {
       if (stream.length < count)
@@ -291,15 +344,9 @@ function decodeWithMembers(raw, source, resolved, members) {
     } else if (/u256|uint256/i.test(type)) {
       const [low, high] = take(2);
       value = fromU256(low, high);
-    } else if (/contractaddress|::address/i.test(type)) value = address(take(1)[0]);
-    else if (/bool/i.test(type)) value = uint(take(1)[0], 1) === "1";
+    } else if (/contractaddress|::address/i.test(type) || ADDRESS_FIELDS.has(field)) value = address(take(1)[0]);
+    else if (/bool/i.test(type) || (resolved.name === "ApprovalForAll" && field === "approved")) value = uint(take(1)[0], 1) === "1";
     else value = uint(take(1)[0], 252);
-    const field = MEMBER_FIELDS[normalizeMember(member.name)];
-    if (!field)
-      throw new ApiError(
-        "INVALID_EVENT",
-        `Unsupported event field ${member.name}.`,
-      );
     if (DECIMAL_FIELDS.has(field) && typeof value === "string" && value.startsWith("0x"))
       value = BigInt(value).toString();
     values[field] = value;

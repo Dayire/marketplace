@@ -10,6 +10,7 @@ export const INTROSPECTION = JSON.parse(
     "utf8",
   ),
 );
+export const ABI_SUMMARY_VERSION = 3;
 
 const ERC721_FUNCTIONS = [
   "owner_of",
@@ -21,6 +22,7 @@ const ERC721_FUNCTIONS = [
 ];
 const ERC721_ALIASES = {
   balance_of: ["balance_of", "balanceOf"],
+  balance_of_batch: ["balance_of_batch", "balanceOfBatch"],
   owner_of: ["owner_of", "ownerOf"],
   token_uri: ["token_uri", "tokenURI"],
   transfer_from: ["transfer_from", "transferFrom"],
@@ -28,6 +30,12 @@ const ERC721_ALIASES = {
   approve: ["approve"],
   get_approved: ["get_approved", "getApproved"],
   is_approved_for_all: ["is_approved_for_all", "isApprovedForAll"],
+  safe_batch_transfer_from: ["safe_batch_transfer_from", "safeBatchTransferFrom"],
+  total_supply: ["total_supply", "totalSupply"],
+  token_by_index: ["token_by_index", "tokenByIndex"],
+  token_of_owner_by_index: ["token_of_owner_by_index", "tokenOfOwnerByIndex"],
+  supports_interface: ["supports_interface", "supportsInterface"],
+  uri: ["uri", "URI"],
 };
 const ERC20_FUNCTIONS = ["decimals", "symbol", "name", "transfer", "allowance"];
 const ERC1155_FUNCTIONS = [
@@ -42,6 +50,9 @@ const LAYOUT_EVENTS = [
   "ApprovalForAll",
   "MetadataUpdate",
   "BatchMetadataUpdate",
+  "TransferSingle",
+  "TransferBatch",
+  "BatchTransfer",
 ];
 
 /**
@@ -49,14 +60,41 @@ const LAYOUT_EVENTS = [
  * needs. Stored per class hash, so size is bounded and reusable.
  */
 export function summarizeAbi(abi, { classHash = null } = {}) {
+  if (typeof abi === "string") {
+    try {
+      abi = JSON.parse(abi);
+    } catch {
+      throw new ApiError("INVALID_ABI", "Contract ABI is not valid JSON", 400);
+    }
+  }
   if (!Array.isArray(abi))
     throw new ApiError("INVALID_ABI", "Contract ABI must be an array", 400);
   const functions = [];
+  const zeroArgumentFunctions = [];
+  const functionInputs = {};
+  const functionOutputs = {};
   const events = [];
-  for (const item of abi) {
+  const walk = (items, depth = 0) => {
+    if (depth > 16 || !Array.isArray(items))
+      throw new ApiError("INVALID_ABI", "Contract ABI interfaces exceed supported nesting", 400);
+    for (const item of items) {
     if (!item || typeof item !== "object") continue;
-    if (item.type === "function" && typeof item.name === "string")
+    if (item.type === "interface") {
+      if (Array.isArray(item.items)) walk(item.items, depth + 1);
+      continue;
+    }
+    if (item.type === "function" && typeof item.name === "string") {
       functions.push(item.name);
+      // A method name alone does not prove how a token ID is serialized.
+      // Conflicting declarations stay unusable rather than picking one.
+      for (const [target, fields] of [[functionInputs, item.inputs], [functionOutputs, item.outputs]]) {
+        const signature = Array.isArray(fields) ? fields.map((field) => ({ name: field?.name ?? null, type: field?.type ?? null })) : null;
+        if (!Object.hasOwn(target, item.name)) target[item.name] = signature;
+        else if (JSON.stringify(target[item.name]) !== JSON.stringify(signature)) target[item.name] = null;
+      }
+      if (Array.isArray(item.inputs) && item.inputs.length === 0)
+        zeroArgumentFunctions.push(item.name);
+    }
     else if (item.type === "event" && typeof item.name === "string") {
       const short = item.name.split("::").pop().split("#").pop();
       if (item.kind === "enum") {
@@ -67,7 +105,7 @@ export function summarizeAbi(abi, { classHash = null } = {}) {
           data: null,
           enum: true,
           variants: (Array.isArray(item.variants) ? item.variants : []).map(
-            (variant) => ({ name: variant?.name, kind: variant?.kind }),
+            (variant) => ({ name: variant?.name, kind: variant?.kind, type: variant?.type }),
           ),
         });
         continue;
@@ -84,6 +122,18 @@ export function summarizeAbi(abi, { classHash = null } = {}) {
             type: m?.type ?? "felt",
           })),
         });
+      } else if (Array.isArray(item.keys) && Array.isArray(item.data)) {
+        // Deployed Cairo 0 ABIs name key/data streams separately. The event
+        // selector is not included in this declaration's key field count.
+        events.push({
+          name: short,
+          keys: item.keys.length,
+          data: item.data.length,
+          members: [
+            ...item.keys.map((member) => ({ name: member?.name, kind: "key", type: member?.type ?? "felt" })),
+            ...item.data.map((member) => ({ name: member?.name, kind: "data", type: member?.type ?? "felt" })),
+          ],
+        });
       } else if (Array.isArray(item.inputs)) {
         // Cairo 0: the selector is the only key; all inputs ride in data.
         events.push({
@@ -98,10 +148,16 @@ export function summarizeAbi(abi, { classHash = null } = {}) {
         });
       } else events.push({ name: short, keys: null, data: null });
     }
-  }
+    }
+  };
+  walk(abi);
   return {
+    abiSummaryVersion: ABI_SUMMARY_VERSION,
     classHash,
     functions: [...new Set(functions)].sort(),
+    zeroArgumentFunctions: [...new Set(zeroArgumentFunctions)].sort(),
+    functionInputs,
+    functionOutputs,
     events,
     fetchedAt: Date.now(),
   };
@@ -134,8 +190,10 @@ export function classifyFromEvidence({
   probes = [],
   implementation = null,
   proxyUncertainty = null,
+  proxyEvidence = [],
   classHash = null,
   evidenceBlock = null,
+  evidenceBlockHash = null,
 }) {
   const probe = (name) => probes.find((p) => p.name === name)?.supported === true;
   const evidence = [];
@@ -152,14 +210,31 @@ export function classifyFromEvidence({
       supported: p.supported,
       ...(p.error ? { error: p.error } : {}),
     });
+  evidence.push(...proxyEvidence);
 
   let standard = null,
     label = null,
     method = "none",
     uncertainty = proxyUncertainty;
   const effective = implementation?.summary ?? summary;
+  const aliases = methodAliases(effective);
+  const transfer = effective?.events?.find((event) => event.name === "Transfer");
+  const transferFields = (transfer?.members ?? []).map((member) =>
+    String(member.name).toLowerCase().replaceAll("_", ""),
+  );
+  const fungible =
+    (has(effective, ["decimals"]) && has(effective, ["transfer"])) ||
+    (transferFields.some((field) => ["value", "amount"].includes(field)) &&
+      !transferFields.some((field) => ["tokenid", "id", "ids"].includes(field)));
 
-  if (probe("erc721")) {
+  if (fungible) {
+    // Positive introspection cannot turn explicit Transfer(value) semantics
+    // into a token-ID layout. Retain contradictory claims in the evidence.
+    method = implementation ? "proxy_abi" : "abi";
+    label = "ERC20";
+    uncertainty = "fungible";
+    evidence.push({ kind: "fungible_markers", markers: ERC20_FUNCTIONS.filter((f) => has(effective, [f])) });
+  } else if (probe("erc721")) {
     standard = "ERC721";
     method = "src5";
   } else if (probe("erc1155")) {
@@ -168,14 +243,13 @@ export function classifyFromEvidence({
   } else if (probe("erc721Legacy")) {
     standard = "ERC721";
     method = "erc165_legacy";
-  } else if (has(effective, ["owner_of"]) && has(effective, ERC721_FUNCTIONS.slice(1))) {
+  } else if (aliases.owner_of && (aliases.transfer_from || aliases.safe_transfer_from)) {
     standard = "ERC721";
     method = implementation ? "proxy_abi" : "abi";
     uncertainty ??= "abi_only";
-    evidence.push({ kind: "abi_markers", markers: ERC721_FUNCTIONS.filter((f) => has(effective, [f])) });
+    evidence.push({ kind: "abi_markers", markers: ERC721_FUNCTIONS.filter((f) => aliases[f]) });
   } else if (
-    has(effective, ERC1155_FUNCTIONS) &&
-    has(effective, ["balance_of_batch", "safe_batch_transfer_from"])
+    aliases.balance_of_batch && aliases.safe_batch_transfer_from
   ) {
     standard = "ERC1155";
     method = implementation ? "proxy_abi" : "abi";
@@ -183,7 +257,7 @@ export function classifyFromEvidence({
     evidence.push({ kind: "abi_markers", markers: ERC1155_FUNCTIONS.filter((f) => has(effective, [f])) });
   } else if (
     has(effective, ["decimals", "transfer"]) &&
-    !has(effective, ["owner_of"])
+    !aliases.owner_of
   ) {
     // Fungible: recorded as evidence, never as an NFT standard.
     method = implementation ? "proxy_abi" : "abi";
@@ -219,9 +293,10 @@ export function classifyFromEvidence({
     implementation: implementation?.address ?? null,
     uncertainty,
     evidence,
-    aliases: standard === "ERC721" || standard === "ERC1155" ? methodAliases(effective) : {},
+    aliases: standard === "ERC721" || standard === "ERC1155" ? aliases : {},
     eventLayouts,
     evidenceBlock,
+    evidenceBlockHash,
   };
   if (implementation)
     classification.implementationClassHash =
@@ -272,6 +347,7 @@ const trimEvidence = (classification) => {
 export function needsClassification(record, atBlock, { maxAttempts = 3 } = {}) {
   const classification = record?.classification ?? null;
   if (!classification) return true;
+  if (classification.implementationClassHash && classification.evidenceBlock !== atBlock) return true;
   if (classification.method === "probe_failed")
     return (classification.attempts ?? 1) < maxAttempts;
   const active = activeClassInterval(record, atBlock);

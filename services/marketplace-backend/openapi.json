@@ -88,7 +88,22 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Envelope"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "maxItems": 1000,
+                          "items": {
+                            "$ref": "#/components/schemas/Collection"
+                          }
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
@@ -195,7 +210,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Envelope"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/Collection"
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
@@ -327,6 +353,24 @@
                                 "string",
                                 "null"
                               ]
+                            },
+                            "basis": {
+                              "const": "indexed"
+                            },
+                            "generation": {
+                              "type": "integer",
+                              "minimum": 1
+                            },
+                            "sourceScope": {
+                              "const": "page",
+                              "description": "Sources describe returned collections and an explicit collection filter; this page makes no chain-wide account inventory claim."
+                            },
+                            "sources": {
+                              "type": "array",
+                              "maxItems": 100,
+                              "items": {
+                                "$ref": "#/components/schemas/CollectionSource"
+                              }
                             }
                           }
                         }
@@ -571,6 +615,13 @@
                                 "string",
                                 "null"
                               ]
+                            },
+                            "basis": {
+                              "const": "indexed"
+                            },
+                            "generation": {
+                              "type": "integer",
+                              "minimum": 1
                             }
                           }
                         }
@@ -708,6 +759,13 @@
                                 "string",
                                 "null"
                               ]
+                            },
+                            "basis": {
+                              "const": "indexed"
+                            },
+                            "generation": {
+                              "type": "integer",
+                              "minimum": 1
                             }
                           }
                         }
@@ -845,6 +903,13 @@
                                 "string",
                                 "null"
                               ]
+                            },
+                            "basis": {
+                              "const": "indexed"
+                            },
+                            "generation": {
+                              "type": "integer",
+                              "minimum": 1
                             }
                           }
                         }
@@ -1434,6 +1499,24 @@
                                 "string",
                                 "null"
                               ]
+                            },
+                            "basis": {
+                              "const": "indexed"
+                            },
+                            "generation": {
+                              "type": "integer",
+                              "minimum": 1
+                            },
+                            "sourceScope": {
+                              "const": "page",
+                              "description": "Sources describe returned collections and an explicit collection filter; this page makes no chain-wide account inventory claim."
+                            },
+                            "sources": {
+                              "type": "array",
+                              "maxItems": 100,
+                              "items": {
+                                "$ref": "#/components/schemas/CollectionSource"
+                              }
                             }
                           }
                         }
@@ -1571,6 +1654,13 @@
                                 "string",
                                 "null"
                               ]
+                            },
+                            "basis": {
+                              "const": "indexed"
+                            },
+                            "generation": {
+                              "type": "integer",
+                              "minimum": 1
                             }
                           }
                         }
@@ -1782,7 +1872,41 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Envelope"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "collections": {
+                              "type": "array",
+                              "maxItems": 20,
+                              "items": {
+                                "$ref": "#/components/schemas/Collection"
+                              }
+                            },
+                            "tokens": {
+                              "type": "array",
+                              "maxItems": 20,
+                              "items": {
+                                "$ref": "#/components/schemas/Token"
+                              }
+                            },
+                            "discoveredCollections": {
+                              "type": "array",
+                              "maxItems": 20,
+                              "items": {
+                                "$ref": "#/components/schemas/DiscoveredCollection"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
@@ -2582,11 +2706,17 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "additionalProperties": true
+                "additionalProperties": true,
+                "properties": {
+                  "visible": {
+                    "type": "boolean"
+                  }
+                }
               }
             }
           }
-        }
+        },
+        "description": "Authenticated operator policy update for a configured or discovered collection. Optional visible boolean changes durable public visibility; hidden moderation wins. Verification is independent, and this route never grants trading or modifies the configured registry."
       }
     },
     "/v1/chains/{chain}/operator/reports": {
@@ -2760,6 +2890,153 @@
           },
           "503": {
             "description": "PostgreSQL discovery catalog unavailable."
+          }
+        }
+      }
+    },
+    "/v1/chains/{chain}/accounts/{account}/balances": {
+      "get": {
+        "summary": "Positive indexed ERC1155 balances for an account",
+        "description": "Additive read endpoint. The existing holdings endpoint remains ERC721-compatible. Quantities and IDs are decimal strings, public visibility is independent of verification/trading, and zero balances are excluded. Queries are generation-scoped indexed holdings, not a chain-wide completeness claim.",
+        "parameters": [
+          {
+            "name": "chain",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "account",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "collection",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "collections",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tokenIds",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "enum": [
+                "token-asc",
+                "token-desc"
+              ],
+              "default": "token-asc"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Owned API response envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "required": [
+                            "items",
+                            "nextCursor",
+                            "basis",
+                            "generation",
+                            "standard",
+                            "sourceScope",
+                            "sources"
+                          ],
+                          "properties": {
+                            "items": {
+                              "type": "array",
+                              "maxItems": 100,
+                              "items": {
+                                "$ref": "#/components/schemas/Balance"
+                              }
+                            },
+                            "nextCursor": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "standard": {
+                              "const": "ERC1155"
+                            },
+                            "basis": {
+                              "const": "indexed"
+                            },
+                            "generation": {
+                              "type": "integer",
+                              "minimum": 1
+                            },
+                            "sourceScope": {
+                              "const": "page",
+                              "description": "Sources describe returned collections and an explicit collection filter; this page makes no chain-wide account inventory claim."
+                            },
+                            "sources": {
+                              "type": "array",
+                              "maxItems": 100,
+                              "items": {
+                                "$ref": "#/components/schemas/CollectionSource"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid bounded query or cursor query/generation mismatch."
+          },
+          "404": {
+            "description": "Explicitly requested collection is private or restricted."
           }
         }
       }
@@ -2950,6 +3227,28 @@
           },
           "bestListing": {
             "$ref": "#/components/schemas/Order"
+          },
+          "basis": {
+            "enum": [
+              "indexed",
+              "chain"
+            ]
+          },
+          "generation": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/CollectionCoverage"
+          },
+          "chain": {
+            "$ref": "#/components/schemas/CollectionChainState"
+          },
+          "source": {
+            "$ref": "#/components/schemas/SourceFreshness"
+          },
+          "reconciliation": {
+            "$ref": "#/components/schemas/ReconciliationEvidence"
           }
         }
       },
@@ -3092,6 +3391,507 @@
           },
           "expiresAt": {
             "type": "integer"
+          }
+        }
+      },
+      "CollectionCoverage": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "description": "Observed per-source coverage. Nulls and gaps remain unknown; this is not proof of a complete chain-wide NFT inventory.",
+        "properties": {
+          "startBlock": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "block": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "observedAt": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "chainId": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "sourceType": {
+            "enum": [
+              "nft",
+              "marketplace",
+              "discovery"
+            ]
+          },
+          "mode": {
+            "enum": [
+              "catalog",
+              "configured_scan"
+            ]
+          },
+          "replayGeneration": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "gaps": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "type": "object",
+              "required": [
+                "from",
+                "to",
+                "reason"
+              ],
+              "properties": {
+                "from": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "to": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "reason": {
+                  "type": "string",
+                  "maxLength": 500
+                }
+              }
+            }
+          }
+        }
+      },
+      "CollectionChainState": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "state": {
+            "enum": [
+              "unknown",
+              "candidate",
+              "syncing",
+              "indexed",
+              "unsupported",
+              "failed"
+            ]
+          },
+          "standard": {
+            "enum": [
+              "ERC721",
+              "ERC1155",
+              null
+            ]
+          },
+          "method": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uncertainty": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "decoderVersion": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "replayGeneration": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "SourceFreshness": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "ready": {
+            "type": "boolean"
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "generation": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "chainHead": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "observedAt": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        }
+      },
+      "ReconciliationEvidence": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "description": "Bounded direct RPC sample evidence for this generation. Partial confidence does not prove enumeration or total-supply completeness.",
+        "properties": {
+          "state": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "confidence": {
+            "enum": [
+              "partial",
+              "complete"
+            ]
+          },
+          "checked": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "projectedCount": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "mismatches": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "type": "object"
+            }
+          },
+          "errors": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "type": "object"
+            }
+          },
+          "limitations": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "type": "string"
+            }
+          },
+          "block": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "replayGeneration": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "observedAt": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "supply": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^(0|[1-9][0-9]*)$",
+            "description": "Only populated when a supported pinned getter exposes supply; no implied enumeration proof."
+          }
+        }
+      },
+      "Collection": {
+        "type": "object",
+        "required": [
+          "address",
+          "name",
+          "tokenCount",
+          "listingCount",
+          "floorByCurrency"
+        ],
+        "properties": {
+          "address": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "verified": {
+            "type": "boolean",
+            "description": "Operator verification is independent of public visibility and settlement permission."
+          },
+          "image": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "tokenCount": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$",
+            "description": "Distinct active token IDs observed under the latest classified NFT standard; retained rows from previous standards are excluded. Not total contract supply."
+          },
+          "listingCount": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$",
+            "description": "Exact lossless decimal uint256 string."
+          },
+          "floorByCurrency": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "basis": {
+            "enum": [
+              "indexed",
+              "chain"
+            ]
+          },
+          "generation": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/CollectionCoverage"
+          },
+          "chain": {
+            "$ref": "#/components/schemas/CollectionChainState"
+          },
+          "source": {
+            "$ref": "#/components/schemas/SourceFreshness"
+          },
+          "reconciliation": {
+            "$ref": "#/components/schemas/ReconciliationEvidence"
+          }
+        }
+      },
+      "DiscoveredCollection": {
+        "type": "object",
+        "required": [
+          "address",
+          "state",
+          "standard",
+          "method",
+          "basis"
+        ],
+        "properties": {
+          "address": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "state": {
+            "enum": [
+              "unknown",
+              "candidate",
+              "syncing",
+              "indexed",
+              "unsupported",
+              "failed"
+            ]
+          },
+          "standard": {
+            "enum": [
+              "ERC721",
+              "ERC1155"
+            ]
+          },
+          "method": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "basis": {
+            "const": "chain"
+          },
+          "generation": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/CollectionCoverage"
+          },
+          "chain": {
+            "$ref": "#/components/schemas/CollectionChainState"
+          },
+          "source": {
+            "$ref": "#/components/schemas/SourceFreshness"
+          },
+          "reconciliation": {
+            "$ref": "#/components/schemas/ReconciliationEvidence"
+          }
+        }
+      },
+      "Balance": {
+        "type": "object",
+        "required": [
+          "id",
+          "standard",
+          "collection",
+          "tokenId",
+          "owner",
+          "balance",
+          "balanceFelts",
+          "metadata",
+          "attributes"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "standard": {
+            "const": "ERC1155"
+          },
+          "collection": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "tokenId": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$",
+            "description": "Exact lossless decimal uint256 string."
+          },
+          "owner": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "balance": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$",
+            "description": "Exact lossless decimal uint256 string."
+          },
+          "balanceFelts": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]+$"
+            }
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "attributes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "value"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": [
+                    "string",
+                    "number",
+                    "boolean"
+                  ]
+                }
+              }
+            }
+          },
+          "image": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "metadataStatus": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "object"
+          }
+        }
+      },
+      "CollectionSource": {
+        "type": "object",
+        "required": [
+          "collection"
+        ],
+        "properties": {
+          "collection": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "basis": {
+            "enum": [
+              "indexed",
+              "chain"
+            ]
+          },
+          "generation": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/CollectionCoverage"
+          },
+          "chain": {
+            "$ref": "#/components/schemas/CollectionChainState"
+          },
+          "source": {
+            "$ref": "#/components/schemas/SourceFreshness"
+          },
+          "reconciliation": {
+            "$ref": "#/components/schemas/ReconciliationEvidence"
           }
         }
       }

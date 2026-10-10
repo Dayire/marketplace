@@ -18,6 +18,7 @@ import {
 } from "./domain.mjs";
 import { SELECTORS } from "./decode.mjs";
 import { PgDiscoveryCatalog } from "./postgres/discovery-catalog.mjs";
+import { collectionKey } from "./collection-catalog.mjs";
 function options(params) {
   const o = Object.fromEntries(params);
   for (const k of ["filters", "tokenIds", "collections"])
@@ -378,15 +379,19 @@ export function createApi({ store, config, rpc, verifySignature }) {
           await app.updateReport(data.id, data.status);
           result = { updated: true };
         } else if (route[1] === "collections" && req.method === "POST") {
+          if (data.visible != null && typeof data.visible !== "boolean")
+            throw new ApiError("INVALID_QUERY", "Visibility must be a boolean.");
           const collection = address(data.address),
-            old = await store.get("collection", collection);
-          if (!old)
+            old = await store.get("collection", collection),
+            key = collectionKey(config.chainId, collection),
+            discovered = await store.get("catalog_collection", key);
+          if (!old && !discovered)
             throw new ApiError(
               "NOT_REGISTERED",
-              "Add contract/start block to registry before publishing.",
+              "Collection must be configured or present in the discovery catalog.",
               409,
             );
-          await app.setCollection(collection, data);
+          await app.setCollection(collection, data, key);
           result = { updated: true };
         }
         if (route[1] === "metadata" && req.method === "POST") {
@@ -406,8 +411,8 @@ export function createApi({ store, config, rpc, verifySignature }) {
           result = { queued: true };
         }
         if (route[1] === "coverage" && req.method === "GET")
-          result = catalog.coverage();
-                if (route[1] === "audit" && req.method === "GET")
+          result = await catalog.coverage();
+        if (route[1] === "audit" && req.method === "GET")
           result = await app.audit();
         if (req.method === "POST") await app.recordAudit(route.join("/"), data);
       } else if (
@@ -516,6 +521,8 @@ export function createApi({ store, config, rpc, verifySignature }) {
         } else if (route[0] === "accounts" && route[1]) {
           if (route[2] === "holdings")
             result = await catalog.holdings(route[1], q);
+          else if (route[2] === "balances")
+            result = await catalog.balances(route[1], q);
           else if (route[2] === "orders")
             result = await catalog.orders(q.collection, {
               ...q,

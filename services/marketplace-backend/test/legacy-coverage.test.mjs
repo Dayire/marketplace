@@ -10,6 +10,7 @@ import { classificationPatch } from "../src/classify.mjs";
 import { decodeEvent } from "../src/decode.mjs";
 import { SELECTORS } from "../src/decode.mjs";
 import { address } from "../src/domain.mjs";
+import { selectorFromName } from "../src/starknet-selector.mjs";
 
 const CHAIN = "0x1";
 const U = address("0x51"); // unsupported (fungible-like) contract
@@ -127,13 +128,23 @@ function harness() {
     call: async (method, p) => {
       if (method === "starknet_chainId") return "0x1";
       if (method === "starknet_getClassHashAt") return "0x0def1";
-      if (method === "starknet_getClass") return { abi: [] };
+      if (method === "starknet_getClass") return { abi: [
+        { type: "function", name: "owner_of", inputs: [{ name: "token_id", type: "Uint256" }], outputs: [{ name: "owner", type: "felt" }] },
+        { type: "function", name: "transfer_from", inputs: [{ name: "from", type: "felt" }, { name: "to", type: "felt" }, { name: "token_id", type: "Uint256" }], outputs: [] },
+        { type: "event", name: "Transfer", keys: [], data: [{ name: "from", type: "felt" }, { name: "to", type: "felt" }, { name: "token_id", type: "Uint256" }] },
+      ] };
+      if (method === "starknet_call") {
+        assert.equal(p.request.entry_point_selector, selectorFromName("owner_of"));
+        assert.deepEqual(p.block_id, { block_hash: hash(5) }, "reconciliation uses the source progress hash");
+        assert.deepEqual(p.request.calldata, ["0x7", "0x0"]);
+        return ["0x2"];
+      }
       if (method === "starknet_getEvents") {
         const lo = p.filter.from_block.block_number,
           hi = p.filter.to_block.block_number;
         return { events: 1 >= lo && 1 <= hi ? [event] : [] };
       }
-      const n = p.block_id === "latest" ? 5 : Number(p.block_id.block_number);
+      const n = p.block_id === "latest" ? 5 : p.block_id.block_hash != null ? Number(BigInt(p.block_id.block_hash) - 100n) : Number(p.block_id.block_number);
       const block = {
         block_number: n,
         block_hash: hash(n),

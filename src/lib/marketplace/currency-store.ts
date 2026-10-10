@@ -43,11 +43,4 @@ const noopStorage: Storage = {
   setItem() {},
 };
 
-export function sameCurrency(a: string | null | undefined, b: string | null | undefined) {
-  if (!a || !b) return false;
-  try {
-    return BigInt(a) === BigInt(b);
-  } catch {
-    return a.toLowerCase() === b.toLowerCase();
-  }
-}
+export { sameCurrency } from "@/lib/marketplace/market-figures";

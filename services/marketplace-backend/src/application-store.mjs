@@ -89,8 +89,11 @@ export function applicationStore(store) {
           id,
         ]);
       },
-      setCollection(collection, data) {
+      setCollection(collection, data, catalogKey) {
         return transaction(async (client) => {
+          if (typeof data.visible === "boolean")
+            await client.query("INSERT INTO app.app_meta VALUES($1,$2) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+              [`catalog_visibility:${catalogKey}`, { visible: data.visible, at: Date.now() }]);
           if (data.hidden === true)
             await client.query(
               "INSERT INTO app.moderation VALUES($1,$2) ON CONFLICT(collection) DO UPDATE SET body=excluded.body",
@@ -189,22 +192,33 @@ export function applicationStore(store) {
         .map((r) => ({ ...r, body: JSON.parse(r.body) })),
     updateReport: (id, status) =>
       db.prepare("UPDATE reports SET status=? WHERE id=?").run(status, id),
-    setCollection(collection, data) {
-      if (data.hidden === true)
-        db.prepare("INSERT OR REPLACE INTO moderation VALUES(?,?)").run(
-          collection,
-          JSON.stringify({
-            reason: String(data.reason ?? "Under review"),
-            at: Date.now(),
-          }),
-        );
-      else if (data.hidden === false)
-        db.prepare("DELETE FROM moderation WHERE collection=?").run(collection);
-      if (typeof data.verified === "boolean")
-        db.prepare("INSERT OR REPLACE INTO app_meta VALUES(?,?)").run(
-          `verification:${collection}`,
-          JSON.stringify({ verified: data.verified, at: Date.now() }),
-        );
+    setCollection(collection, data, catalogKey) {
+      db.exec("BEGIN IMMEDIATE");
+      try {
+        if (typeof data.visible === "boolean")
+          db.prepare("INSERT OR REPLACE INTO app_meta VALUES(?,?)").run(
+            `catalog_visibility:${catalogKey}`, JSON.stringify({ visible: data.visible, at: Date.now() }),
+          );
+        if (data.hidden === true)
+          db.prepare("INSERT OR REPLACE INTO moderation VALUES(?,?)").run(
+            collection,
+            JSON.stringify({
+              reason: String(data.reason ?? "Under review"),
+              at: Date.now(),
+            }),
+          );
+        else if (data.hidden === false)
+          db.prepare("DELETE FROM moderation WHERE collection=?").run(collection);
+        if (typeof data.verified === "boolean")
+          db.prepare("INSERT OR REPLACE INTO app_meta VALUES(?,?)").run(
+            `verification:${collection}`,
+            JSON.stringify({ verified: data.verified, at: Date.now() }),
+          );
+        db.exec("COMMIT");
+      } catch (error) {
+        db.exec("ROLLBACK");
+        throw error;
+      }
     },
     audit: () =>
       db.prepare("SELECT * FROM audit ORDER BY id DESC LIMIT 100").all(),

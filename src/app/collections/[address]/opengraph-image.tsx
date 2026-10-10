@@ -1,4 +1,7 @@
-import { ImageResponse } from "next/og";
+import { renderCollectionShareImage } from "@/features/share/render-share-image";
+import { getCollectionShareData } from "@/lib/marketplace/seo-data";
+
+export const alt = "Collection preview on Realms.market";
 
 export const size = {
   width: 1200,
@@ -7,9 +10,11 @@ export const size = {
 
 export const contentType = "image/png";
 
-// Cache OG images at the edge for 5 minutes; revalidate in background for 15 minutes.
-// Matches the collection SEO data cache TTL in seo-data.ts.
-export const revalidate = 300;
+// Rendered per request, like asset cards: caching a card for every requested
+// address would let arbitrary URLs grow the container's disk. The data behind
+// it is cached for five minutes (seo-data.ts), and the response may be reused
+// for as long by unfurlers or a CDN.
+const MAX_AGE_SECONDS = 300;
 
 export default async function Image({
   params,
@@ -17,57 +22,7 @@ export default async function Image({
   params: Promise<{ address: string }>;
 }) {
   const { address } = await params;
-  const title = `Collection ${address}`;
-
-  return new ImageResponse(
-    (
-      <div
-        style={{
-          height: "100%",
-          width: "100%",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          background: "#09090b",
-          color: "#fafafa",
-          padding: "56px",
-          fontFamily: "ui-sans-serif, system-ui, sans-serif",
-        }}
-      >
-        <div
-          style={{
-            fontSize: 28,
-            letterSpacing: "0.12em",
-            textTransform: "uppercase",
-            color: "#a1a1aa",
-          }}
-        >
-          Realms.market
-        </div>
-
-        <div
-          style={{
-            fontSize: 72,
-            fontWeight: 700,
-            lineHeight: 1.1,
-            maxWidth: "88%",
-          }}
-        >
-          {title}
-        </div>
-
-        <div
-          style={{
-            fontSize: 30,
-            color: "#d4d4d8",
-          }}
-        >
-          Collection
-        </div>
-      </div>
-    ),
-    {
-      ...size,
-    },
-  );
+  return renderCollectionShareImage(await getCollectionShareData(address), {
+    maxAge: MAX_AGE_SECONDS,
+  });
 }

@@ -6,7 +6,8 @@ import { CollectionRouteContainer } from "@/features/collections/collection-rout
 import { getMarketplaceRuntimeConfig } from "@/lib/marketplace/config";
 import { prefetchTraitNamesSummary } from "@/lib/marketplace/trait-summary-prefetch";
 import { makeQueryClient } from "@/lib/marketplace/query-client";
-import { buildMarketplacePageMetadata } from "@/lib/seo/metadata";
+import { buildMarketplacePageMetadata, shareCardImage } from "@/lib/seo/metadata";
+import { collectionShareCopy } from "@/lib/seo/share-copy";
 
 type CollectionPageProps = {
   params: Promise<{ address: string }>;
@@ -44,20 +45,16 @@ export async function generateMetadata({
   params,
 }: CollectionPageProps): Promise<Metadata> {
   const { address } = await params;
-  const { getCollectionSeoData } = await import("@/lib/marketplace/seo-data");
-  const seoData = await getCollectionSeoData(address);
+  const { getCollectionShareData } = await import("@/lib/marketplace/seo-data");
+  const card = await getCollectionShareData(address);
+  const copy = collectionShareCopy(card);
+  const pathname = `/collections/${address}`;
 
   return buildMarketplacePageMetadata({
-    title: seoData.exists
-      ? `${seoData.name} | Realms.market`
-      : `Collection ${seoData.name} | Realms.market`,
-    description:
-      seoData.description ??
-      (seoData.exists
-        ? `Explore listings and activity for ${seoData.name}.`
-        : `Collection ${seoData.name} is unavailable on Realms.market.`),
-    pathname: `/collections/${address}`,
-    image: seoData.image ?? `/collections/${address}/opengraph-image`,
-    noIndex: !seoData.exists,
+    title: `${copy.title} | Realms.market`,
+    description: copy.description,
+    pathname,
+    image: shareCardImage(pathname, card.version, copy.imageAlt),
+    noIndex: !card.exists,
   });
 }

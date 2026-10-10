@@ -9,7 +9,8 @@ import { address, ApiError } from "./domain.mjs";
 import { decodeEvent, DECODER_CAPABILITY } from "./decode.mjs";
 import { collectionKey, collectionRecord } from "./collection-catalog.mjs";
 import { emitterCandidateFields } from "./discovery.mjs";
-import { summarizeAbi } from "./classify.mjs";
+import { resolveClassEvidence } from "./classify-scan.mjs";
+import { selectorFromName } from "./starknet-selector.mjs";
 const equal = (a, b) => BigInt(a) === BigInt(b);
 const signature = (e) =>
   JSON.stringify([
@@ -21,10 +22,12 @@ export async function scanOnce(store, rpc, config, options = {}) {
   try {
     return await scanRange(store, rpc, config, options);
   } catch (error) {
-    await store.put("status", "rpc", {
-      ...(await store.get("status", "rpc")),
+    const scoped = Array.isArray(options.scope);
+    const key = scoped ? `source:${options.scope.map(address).sort().join(',')}` : 'rpc';
+    await store.put("status", key, {
+      ...(await store.get("status", key)),
       error: error.code ?? "INDEXER_ERROR",
-      identityVerified: false,
+      ...(scoped ? { observedAt: Date.now(), sources: options.scope.map(address) } : { identityVerified: false }),
     });
     throw error;
   }
@@ -45,6 +48,7 @@ async function scanRange(
     from: fromOption = null,
     maxWindowEvents = 50000,
     emitterBudget = 500,
+    backfillAnchor = null,
   } = {},
 ) {
   // Scoped mode = collection backfill overlay (#113): only the scoped
@@ -187,7 +191,7 @@ async function scanRange(
     ...(history && history.state !== "passed" ? [history.cutoff] : []),
     ...(useFast ? [cutoff] : []),
   );
-  await store.put("status", "rpc", {
+  if (!backfillMode) await store.put("status", "rpc", {
     head: latest.block_number,
     hash: latest.block_hash,
     observedAt,
@@ -202,6 +206,25 @@ async function scanRange(
       indexed: (await store.head())?.number ?? null,
       head: latest.block_number,
     };
+  }
+  // The first older overlay may precede every journaled block. Accept it only
+  // after verifying the original journal anchor and the first parent at RPC.
+  let parentHashVerified = null;
+  if (backfillAnchor != null) {
+    if (!backfillMode || !Number.isSafeInteger(backfillAnchor.number) || backfillAnchor.number < from)
+      throw new ApiError('BACKFILL_ANCHOR', 'Invalid historical overlay anchor', 409);
+    const stored = await store.canonicalBlock(backfillAnchor.number);
+    const target = await rpc.call('starknet_getBlockWithTxHashes', { block_id: { block_number: backfillAnchor.number } });
+    if (!stored || !['ACCEPTED_ON_L1', 'ACCEPTED_ON_L2'].includes(target.status)
+        || !equal(stored.hash, backfillAnchor.hash) || !equal(target.block_hash, backfillAnchor.hash))
+      throw new ApiError('BACKFILL_ANCHOR', 'Historical overlay anchor changed', 409);
+    if (from === 0) parentHashVerified = '0x0';
+    else {
+      const parent = await rpc.call('starknet_getBlockWithTxHashes', { block_id: { block_number: from - 1 } });
+      if (parent.block_number !== from - 1 || !['ACCEPTED_ON_L1', 'ACCEPTED_ON_L2'].includes(parent.status))
+        throw new ApiError('BACKFILL_ANCHOR', 'Historical parent is not accepted', 409);
+      parentHashVerified = parent.block_hash;
+    }
   }
   let anchor = await rpc.call("starknet_getBlockWithTxHashes", {
     block_id: { block_number: end },
@@ -319,17 +342,9 @@ async function scanRange(
       "CHAIN_CONFLICT",
       "Scan range changed during acquisition.",
     );
-  // Per-source ABI summaries (#112): decoded layouts are chosen by the class
-  // pinned at the scan anchor. Missing context simply falls back to the
-  // legacy fixed-order decode, so an unreachable ABI never blocks a scan.
-  const decoderContext = await buildDecoderContext(
-    store,
-    rpc,
-    sources,
-    config,
-    anchor.block_hash,
-  );
-  const prepare = (n, block) => {
+  // Event-bearing blocks use their own class evidence. An upgrade in the
+  // window must never make earlier events decode using the final ABI.
+  const prepare = async (n, block) => {
     if (
       block.block_number !== n ||
       !["ACCEPTED_ON_L1", "ACCEPTED_ON_L2"].includes(block.status) ||
@@ -339,9 +354,12 @@ async function scanRange(
         "INVALID_RPC_BLOCK",
         "Expected an accepted receipt block at the requested height.",
       );
+    if (n === from && parentHashVerified != null && !equal(block.parent_hash, parentHashVerified))
+      throw new ApiError('CHAIN_CONFLICT', 'Historical first parent changed during acquisition', 409);
     // Discard unrelated transactions immediately instead of retaining a whole
     // window of full receipt payloads. Defer decoding errors to the ordered writer.
     try {
+      const decoderContext = await buildDecoderContext(store, rpc, sources, config, block, found.get(n) ?? []);
       return {
         n,
         hash: block.block_hash,
@@ -356,6 +374,7 @@ async function scanRange(
             decoderContext,
           ),
           backfill: backfillMode,
+          ...(n === from && parentHashVerified != null ? { backfillAnchor: { ...backfillAnchor, parentHashVerified: block.parent_hash } } : {}),
         },
       };
     } catch (error) {
@@ -383,7 +402,7 @@ async function scanRange(
             "INVALID_RPC_BLOCK",
             "Missing receipt block in batch",
           );
-        return receipts.map((block, i) => prepare(group[i], block));
+        return Promise.all(receipts.map((block, i) => prepare(group[i], block)));
       })
     ).flat();
   } else {
@@ -508,7 +527,7 @@ export function prepareBlock(
   const events = [],
     quarantined = [],
     actual = [];
-  for (const entry of b.transactions) {
+  for (const [transactionIndex, entry] of b.transactions.entries()) {
     const receipt = entry.receipt;
     if (!receipt || !Array.isArray(receipt.events))
       throw new ApiError("INVALID_RECEIPT", "Missing ordered receipt events.");
@@ -538,9 +557,15 @@ export function prepareBlock(
       actual.push({ raw, tx: transactionHash });
       const marketSource =
         !!config.marketplace && from === address(config.marketplace);
-      let event;
+      let event, summary;
       try {
-        event = decodeEvent(raw, config, context?.get(from) ?? null);
+        const evidence = context?.get(from) ?? null;
+        if (evidence?.error) throw evidence.error;
+        const afterUpgrade = evidence?.boundary && (transactionIndex > evidence.boundary.transactionIndex
+          || (transactionIndex === evidence.boundary.transactionIndex && eventIndex >= evidence.boundary.eventIndex));
+        summary = evidence && Object.hasOwn(evidence, 'current')
+          ? (evidence.boundary && !afterUpgrade ? evidence.previous : evidence.current) : evidence;
+        event = decodeEvent(raw, config, summary);
       } catch (error) {
         // Marketplace decode failures stay fatal; collection events are
         // quarantined with their raw row kept replayable (#112).
@@ -567,7 +592,9 @@ export function prepareBlock(
         });
         continue;
       }
-      if (event) events.push({ ...event, raw, transactionHash, eventIndex });
+      if (event) events.push({ ...event, raw, transactionHash, eventIndex, transactionIndex });
+      else if (!marketSource && summary) events.push({ type: 'unmodeled', collection: from, raw,
+        transactionHash, eventIndex, transactionIndex, decoderVersion: DECODER_CAPABILITY });
     }
   }
   const a = actual.map((x) => `${BigInt(x.tx)}:${signature(x.raw)}`).sort(),
@@ -595,32 +622,63 @@ export function prepareBlock(
   };
 }
 
-/** Pin class evidence per source at the scan anchor for decode adapters. */
-async function buildDecoderContext(store, rpc, sources, config, blockHash) {
+/** Pin evidence only for event-bearing sources, including a proven upgrade boundary. */
+async function buildDecoderContext(store, rpc, sources, config, block, found) {
   const context = new Map();
   if (!store || typeof store.get !== "function" || !rpc) return context;
   const marketplace = config.marketplace ? address(config.marketplace) : null;
+  const emitters = new Set(found.map(event => address(event.from_address)));
   for (const source of sources) {
     const normalized = address(source.address);
-    if (normalized === marketplace) continue;
+    if (normalized === marketplace || !emitters.has(normalized) || source.start > block.block_number) continue;
+    const configured = config.collections.find(value => address(value.address) === normalized);
+    const load = async (classHash, blockHash) => {
+      const id = '0x' + BigInt(classHash).toString(16);
+      const resolved = await resolveClassEvidence(rpc, store, { classHash: id, contractAddress: normalized, blockId: { block_hash: blockHash } });
+      if (resolved.proxyUncertainty === 'proxy_unverified')
+        throw new ApiError('PROXY_UNVERIFIED', 'Proxy implementation is not proven at the canonical block', 409);
+      const summary = resolved.effectiveSummary;
+      // The reviewed registry already authorizes its legacy layouts; new
+      // discovered contracts always require ABI-backed evidence.
+      if (!configured?.indexingOnly && !summary.events.length && !summary.functions.length) return null;
+      return { ...summary, proxyClassHash: id, implementationClassHash: resolved.implementation?.classHash ?? null,
+        implementationAddress: resolved.implementation?.address ?? null, requireAbiLayout: !!configured?.indexingOnly };
+    };
     try {
       const classHash = await rpc.call("starknet_getClassHashAt", {
         contract_address: normalized,
-        block_id: { block_hash: blockHash },
+        block_id: { block_hash: block.block_hash },
       });
-      let summary = await store.get("class_evidence", classHash);
-      if (!summary) {
-        const contractClass = await rpc.call("starknet_getClass", {
-          class_hash: classHash,
-          block_id: { block_hash: blockHash },
+      const current = await load(classHash, block.block_hash);
+      let previous = null, boundary = null;
+      if (block.block_number > source.start) {
+        const previousClass = await rpc.call('starknet_getClassHashAt', {
+          contract_address: normalized, block_id: { block_hash: block.parent_hash },
         });
-        summary = summarizeAbi(contractClass?.abi ?? [], { classHash });
-        await store.put("class_evidence", classHash, summary);
+        previous = await load(previousClass, block.parent_hash);
+        const implementationChanged = current?.implementationClassHash !== previous?.implementationClassHash;
+        if (!equal(classHash, previousClass) || implementationChanged) {
+          const upgrades = [];
+          for (const [transactionIndex, entry] of block.transactions.entries()) {
+            if (entry.receipt?.execution_status === 'REVERTED') continue;
+            for (const [eventIndex, raw] of (entry.receipt?.events ?? []).entries()) {
+              if (address(raw.from_address) === normalized && raw.keys?.length === 1
+                  && equal(raw.keys[0], selectorFromName('Upgraded')) && raw.data?.length === 1
+                  && [classHash, current?.implementationClassHash, current?.implementationAddress].filter(Boolean).some(value => equal(raw.data[0], value)))
+                upgrades.push({ transactionIndex, eventIndex });
+            }
+          }
+          if (upgrades.length !== 1)
+            throw new ApiError('CLASS_BOUNDARY_UNRESOLVED', 'Class replacement has no unique ordered Upgraded proof', 409);
+          boundary = upgrades[0];
+        }
       }
-      context.set(normalized, summary);
-    } catch {
-      // Context is strictly additive: a source without it decodes with the
-      // legacy rules and can be retried on the next scan.
+      context.set(normalized, { current, previous, boundary });
+    } catch (error) {
+      // ABI/proxy uncertainty is local to the discovered source. Reviewed
+      // registry fallback remains available only for ordinary fetch failures.
+      if (configured?.indexingOnly || ['CLASS_BOUNDARY_UNRESOLVED', 'PROXY_UNVERIFIED'].includes(error.code))
+        context.set(normalized, { error: new ApiError(error.code ?? 'ABI_UNAVAILABLE', String(error.message).slice(0, 200), 409) });
     }
   }
   return context;

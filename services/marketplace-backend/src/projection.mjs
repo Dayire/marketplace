@@ -2,10 +2,20 @@ import { address, uint, ApiError } from "./domain.mjs";
 
 const balanceKey = (collection, tokenId, owner) =>
   `${collection}:${tokenId}:${owner}`;
-const erc1155Pairs = (e) =>
-  e.type === "erc1155_batch_transfer"
-    ? e.ids.map((id, i) => [uint(id), uint(e.values[i])])
-    : [[uint(e.tokenId), uint(e.value)]];
+const erc1155Pairs = (e) => {
+  if (e.type !== "erc1155_batch_transfer")
+    return [[uint(e.tokenId), uint(e.value)]];
+  if (
+    !Array.isArray(e.ids) ||
+    !Array.isArray(e.values) ||
+    e.ids.length !== e.values.length
+  )
+    throw new ApiError(
+      "INVALID_EVENT",
+      "ERC-1155 batch IDs and values must have equal lengths.",
+    );
+  return e.ids.map((id, i) => [uint(id), uint(e.values[i])]);
+};
 const ZERO_ADDRESS = address("0");
 
 /** Pure event reducer; both storage engines enforce atomicity around these writes. */
@@ -137,18 +147,21 @@ export function projectEvent(e, p, get, put) {
     // balances plus the contract's native felt pair, with raw mint/burn
     // evidence staying in chain.events (#117). A batch moves balances for
     // every id but writes exactly one activity row (shared tail below).
-    const collection = address(e.collection);
+    const collection = address(e.collection),
+      from = address(e.from),
+      to = address(e.to);
     for (const [tokenId, amount] of erc1155Pairs(e)) {
       if (BigInt(amount) === 0n) continue;
       const move = (owner, delta) => {
         const key = balanceKey(collection, tokenId, owner);
         const previous = get("erc1155_balance", key);
-        const balance = (BigInt(previous?.balance ?? "0") + delta).toString();
-        if (BigInt(balance) < 0n)
+        const next = BigInt(previous?.balance ?? "0") + delta;
+        if (next < 0n)
           throw new ApiError(
             "NEGATIVE_BALANCE",
             "ERC-1155 balance cannot go negative.",
           );
+        const balance = uint(next);
         const low = (BigInt(balance) & ((1n << 128n) - 1n)).toString(16),
           high = (BigInt(balance) >> 128n).toString(16);
         put(
@@ -167,10 +180,10 @@ export function projectEvent(e, p, get, put) {
           height,
         );
       };
-      if (e.from !== ZERO_ADDRESS) move(address(e.from), -BigInt(amount));
-      if (e.to !== ZERO_ADDRESS) move(address(e.to), BigInt(amount));
+      if (from !== ZERO_ADDRESS) move(from, -BigInt(amount));
+      if (to !== ZERO_ADDRESS) move(to, BigInt(amount));
     }
-  } else if (e.type === "undecodable") {
+  } else if (e.type === "undecodable" || e.type === "unmodeled") {
     // Raw evidence is already canonical in chain.events; an undecodable
     // event is quarantined by the scanner (#112).
     return;
@@ -223,18 +236,20 @@ export function projectionReads(e, p) {
     `${p.blockHash}:${p.transactionHash}:${p.eventIndex}`,
   ]);
   if (e.type === "erc1155_transfer" || e.type === "erc1155_batch_transfer") {
-    const collection = address(e.collection);
+    const collection = address(e.collection),
+      from = address(e.from),
+      to = address(e.to);
     for (const [tokenId, amount] of erc1155Pairs(e)) {
       if (BigInt(amount) === 0n) continue;
-      if (e.from !== ZERO_ADDRESS)
+      if (from !== ZERO_ADDRESS)
         keys.push([
           "erc1155_balance",
-          balanceKey(collection, tokenId, address(e.from)),
+          balanceKey(collection, tokenId, from),
         ]);
-      if (e.to !== ZERO_ADDRESS)
+      if (to !== ZERO_ADDRESS)
         keys.push([
           "erc1155_balance",
-          balanceKey(collection, tokenId, address(e.to)),
+          balanceKey(collection, tokenId, to),
         ]);
     }
     return keys;

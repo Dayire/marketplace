@@ -1,10 +1,11 @@
-import { address } from "./domain.mjs";
+import { address, uint } from "./domain.mjs";
 import { parseTokenMetadata } from "./metadata-data.mjs";
 import {
   expandMetadataJobs,
   metadataCandidates,
   claimMetadataJob,
   completeMetadataJob,
+  metadataAuthorityVersion,
 } from "./metadata-store.mjs";
 import { mapConcurrent } from "./concurrency.mjs";
 import { createMediaFetcher } from "./media-fetch.mjs";
@@ -17,6 +18,11 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ApiError, u256Felts } from "./domain.mjs";
 import { SELECTORS } from "./decode.mjs";
+import { indexingSource } from "./source-config.mjs";
+import { methodAliases } from "./classify.mjs";
+import { resolveClassEvidence } from "./classify-scan.mjs";
+import { selectorFromName } from "./starknet-selector.mjs";
+import { collectionKey } from "./collection-catalog.mjs";
 export function publicAddress(ip) {
   if (isIP(ip) === 4) {
     const [a, b, c] = ip.split(".").map(Number);
@@ -325,6 +331,55 @@ export function imageExtension(contentType, bytes) {
   if (!ext) throw new Error("Unsupported image content type");
   return ext;
 }
+async function metadataEntrypoints(store, rpc, config, token, head, generation) {
+  const source = config.chainId ? await indexingSource(store, config, token.collection)
+    : { address: token.collection, standard: token.standard ?? "ERC721" };
+  if (!source) throw new Error("Metadata source has no proven NFT indexing authority");
+  const record = config.chainId
+    ? await store.get("catalog_collection", collectionKey(config.chainId, token.collection)) : null;
+  const standard = ["ERC721", "ERC1155"].includes(record?.standard)
+    ? record.standard : source.standard ?? token.standard ?? "ERC721";
+  const blockId = head?.hash ? { block_hash: head.hash } : "latest";
+  if (!source.indexingOnly && !record && standard === "ERC721")
+    return { standard, blockId, methods: [SELECTORS.token_uri, SELECTORS.tokenURI]
+      .map((selector) => ({ selector, type: "u256" })) };
+  if (!head?.hash) throw new Error("Metadata URI proof requires a canonical indexed block");
+  if (source.indexingOnly) {
+    if (record?.replayGeneration !== generation) throw new Error("Metadata source generation changed");
+  }
+  const classHash = await rpc.call("starknet_getClassHashAt", {
+    contract_address: token.collection, block_id: blockId,
+  });
+  if (source.classHash && BigInt(classHash) !== BigInt(source.classHash))
+    throw new Error("Metadata source class changed since positive classification");
+  const evidence = await resolveClassEvidence(rpc, store, {
+    classHash, contractAddress: token.collection, blockId, cacheWrite: false,
+  });
+  if (evidence.proxyUncertainty === "proxy_unverified")
+    throw new Error("Metadata URI method requires a verified proxy implementation");
+  const aliases = methodAliases(evidence.effectiveSummary)[standard === "ERC1155" ? "uri" : "token_uri"] ?? [];
+  const methods = aliases.flatMap((name) => {
+    const inputs = evidence.effectiveSummary.functionInputs?.[name];
+    return Array.isArray(inputs) && inputs.length === 1 && metadataIntegerBits(inputs[0].type) != null
+      ? [{ selector: selectorFromName(name), type: inputs[0].type }] : [];
+  });
+  if (!methods.length) throw new Error("Metadata URI signature is not proven by the pinned ABI");
+  return { standard, blockId, methods, sourceAuthority: metadataAuthorityVersion(record) };
+}
+function metadataIntegerBits(type) {
+  if (/^(Uint256|u256|core::integer::u256)$/.test(type ?? "")) return 256;
+  if (/^(felt|felt252|core::felt252)$/.test(type ?? "")) return 252;
+  const match = /^(?:core::integer::)?u(8|16|32|64|128)$/.exec(type ?? "");
+  return match ? Number(match[1]) : null;
+}
+function metadataCalldata(tokenId, type) {
+  const bits = metadataIntegerBits(type), value = uint(tokenId, bits);
+  const prime = (1n << 251n) + 17n * (1n << 192n) + 1n;
+  if (bits === 252 && BigInt(value) >= prime) throw new Error("Metadata token ID exceeds the Starknet field");
+  // JSON-RPC FELT inputs are hexadecimal even though all public DTO quantities
+  // and domain arithmetic retain exact decimal strings.
+  return (bits === 256 ? u256Felts(value) : [value]).map((n) => "0x" + BigInt(n).toString(16));
+}
 export async function refreshMetadata(
   store,
   rpc,
@@ -340,6 +395,10 @@ export async function refreshMetadata(
     fetchMedia = fetchResource === fetchPublic ? pacedFetchPublic : fetchResource,
   } = {},
 ) {
+  if (!Number.isInteger(limit) || limit < 1 || limit > 100)
+    throw new Error("Metadata limit must be 1–100");
+  if (quota != null && (!Number.isInteger(quota) || quota < 1 || quota > limit))
+    throw new Error("Metadata quota must be 1–limit");
   if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 4)
     throw new Error("Metadata concurrency must be 1–4");
   const resolve = (uri) =>
@@ -351,33 +410,34 @@ export async function refreshMetadata(
   await expandMetadataJobs(store);
   const now = Date.now();
   const perCollectionQuota = quota ?? Math.max(1, Math.ceil(limit / 2));
+  const generation = await store.generation(), head = await store.head(), methods = new Map();
   const tokens = await metadataCandidates(store, now, limit, perCollectionQuota);
   await mapConcurrent(tokens, concurrency, async (token) => {
     let patch;
-    const claim = await claimMetadataJob(store, token, Date.now());
+    const claim = await claimMetadataJob(store, token, Date.now(), generation);
     if (!claim) return;
     try {
-      let values;
-      try {
-        values = await rpc.contract(
-          token.collection,
-          SELECTORS.token_uri,
-          u256Felts(token.tokenId),
-        );
-      } catch {
-        values = await rpc.contract(
-          token.collection,
-          SELECTORS.tokenURI,
-          u256Felts(token.tokenId),
-        );
+      if (!methods.has(token.collection)) methods.set(token.collection,
+        metadataEntrypoints(store, rpc, config, token, head, generation));
+      const entrypoints = await methods.get(token.collection);
+      claim.sourceAuthority = entrypoints.sourceAuthority;
+      let values, callError;
+      for (const method of entrypoints.methods) {
+        try {
+          values = await rpc.contract(token.collection, method.selector, metadataCalldata(token.tokenId, method.type), entrypoints.blockId);
+          break;
+        } catch (error) { callError = error; }
       }
-      const uri = decodeUri(values);
+      if (!values) throw callError ?? new Error("Metadata URI method failed");
+      const decodedUri = decodeUri(values), uri = entrypoints.standard === "ERC1155"
+        ? decodedUri.replaceAll("{id}", BigInt(token.tokenId).toString(16).padStart(64, "0")) : decodedUri;
       const inline = parseDataUri(uri, MAX_INLINE_METADATA_BYTES);
       if (inline && !["application/json", "text/plain"].includes(inline.mime))
         throw new Error("Unsupported inline metadata type");
       const bytes = inline
         ? inline.bytes
         : (await fetchMedia(resolve(uri))).bytes;
+      if (bytes.length > MAX_INLINE_METADATA_BYTES) throw new Error("Metadata exceeds size limit");
       const raw = parseTokenMetadata(
           bytes.toString(),
           (config.collections ?? []).find(
@@ -409,6 +469,7 @@ export async function refreshMetadata(
                 maxBytes: MAX_IMAGE_BYTES,
                 timeoutMs: 30000,
               });
+          if (asset.bytes.length > MAX_IMAGE_BYTES) throw new Error("Image exceeds size limit");
           const ext = imageExtension(asset.contentType, asset.bytes);
           const name =
             createHash("sha256").update(asset.bytes).digest("hex") +
@@ -422,7 +483,7 @@ export async function refreshMetadata(
           }
           image = `/api/marketplace/v1/chains/${config.chain}/assets/${name}`;
         } catch (error) {
-          imageError = error.message;
+          imageError = String(error.message).slice(0, 500);
         }
       }
       // Only a token left without any cached artwork counts as failing; a retained
@@ -469,7 +530,7 @@ export async function refreshMetadata(
     } catch (e) {
       patch = {
         metadataStatus: "failed",
-        metadataError: e.message,
+        metadataError: String(e.message).slice(0, 500),
         metadataNextAttempt: now + 300000,
       };
     }

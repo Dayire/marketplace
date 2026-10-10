@@ -1,7 +1,8 @@
 import { runtime } from "./runtime.mjs";
-import { indexerOptions } from "./indexer-options.mjs";
+import { indexerOptions, catalogOptions } from "./indexer-options.mjs";
 import { scanOnce } from "./indexer.mjs";
 import { createHash } from "node:crypto";
+import { runIndexingCycle } from './source-cycle.mjs';
 const { store, config, rpc } = await runtime();
 let releaseLease;
 try {
@@ -36,10 +37,9 @@ try {
       ? Number(process.env.MARKETPLACE_STOP_BLOCK)
       : undefined;
     do {
-      const result = await scanOnce(store, rpc, config, {
-        ...indexerOptions(),
-        stopAt: stop,
-      });
+      const result = process.env.MARKETPLACE_CATALOG_ENABLED === 'true'
+        ? await runIndexingCycle(store, rpc, config, { ...catalogOptions(), live: { ...catalogOptions().live, stopAt: stop }, discovery: { ...catalogOptions().discovery, stopAt: stop } })
+        : await scanOnce(store, rpc, config, { ...indexerOptions(), stopAt: stop });
       console.log(JSON.stringify(result));
       if (
         command !== "backfill" ||

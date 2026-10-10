@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { address, ApiError } from "../domain.mjs";
 import { projectEvent, projectionReads } from "../projection.mjs";
+import { validHistoricalAnchor } from "../backfill-anchor.mjs";
 export const TABLES = Object.freeze({
   collection: "market.collections",
   catalog_collection: "chain.collection_catalog",
@@ -238,7 +239,7 @@ export class PgStore {
   async cachedImage(source) {
     const row = (
       await this.query(
-        "SELECT m.body->>'image' AS image FROM market.token_metadata m JOIN media.assets a ON a.name=regexp_replace(m.body->>'image','^.*/','') WHERE m.body->'metadata'->>'imageSourceUri'=$1 AND m.body->>'image' IS NOT NULL LIMIT 1",
+        "SELECT m.body->>'image' AS image FROM market.token_metadata m JOIN media.assets a ON a.name=regexp_replace(m.body->>'image','^.*/','') WHERE md5(m.body->'metadata'->>'imageSourceUri')=md5($1) AND m.body->'metadata'->>'imageSourceUri'=$1 AND m.body->>'image' IS NOT NULL LIMIT 1",
         [source],
       )
     ).rows[0];
@@ -576,7 +577,19 @@ export class PgStore {
         if (head && block.number !== head.number + 1) {
           if (block.backfill && block.number < head.number) {
             const prior = await this.canonicalBlock(block.number - 1);
-            if (!prior || prior.hash !== block.parentHash)
+            let continuous = prior?.hash === block.parentHash;
+            if (!prior) {
+              const anchor = block.backfillAnchor;
+              const oldest = safeNumber(
+                (await this.query("SELECT MIN(number) AS number FROM chain.blocks"))
+                  .rows[0].number,
+              );
+              const target = Number.isSafeInteger(anchor?.number)
+                ? await this.canonicalBlock(anchor.number)
+                : null;
+              continuous = validHistoricalAnchor(block, oldest, target);
+            }
+            if (!continuous)
               throw new ApiError(
                 "CHAIN_GAP",
                 "Backfill range is not contiguous with indexed history",
@@ -648,8 +661,10 @@ export class PgStore {
   }
   async project(e, p) {
     const reads = new Map();
-    for (const [kind, id] of projectionReads(e, p))
-      reads.set(`${kind}:${id}`, await this.get(kind, id));
+    for (const [kind, id] of projectionReads(e, p)) {
+      const key = `${kind}:${id}`;
+      if (!reads.has(key)) reads.set(key, await this.get(kind, id));
+    }
     const writes = [];
     projectEvent(
       e,
@@ -660,7 +675,12 @@ export class PgStore {
           throw new Error("Projection read not declared: " + key);
         return reads.get(key);
       },
-      (...args) => writes.push(args),
+      (...args) => {
+        // Repeated batch IDs and self-transfers must observe earlier writes in
+        // this event, while the database keeps its original undo before-image.
+        reads.set(`${args[0]}:${args[1]}`, args[2]);
+        writes.push(args);
+      },
     );
     for (const args of writes) await this.put(...args);
     const activity = writes.find(([kind]) => kind === "activity")?.[2];

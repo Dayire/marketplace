@@ -1,8 +1,10 @@
-import { ApiError, address } from "./domain.mjs";
+import { ApiError, address, uint } from "./domain.mjs";
 import { mapConcurrent } from "./concurrency.mjs";
 import { collectionRecord } from "./collection-catalog.mjs";
 import { discoveryKey } from "./discovery.mjs";
+import { selectorFromName } from "./starknet-selector.mjs";
 import {
+  ABI_SUMMARY_VERSION,
   INTROSPECTION,
   classifyFromEvidence,
   classificationPatch,
@@ -27,15 +29,15 @@ const supportedSelector = (value) => {
   }
 };
 
-async function supportsInterface(rpc, contract, block, interfaceId) {
+async function supportsInterface(rpc, contract, blockId, interfaceId, method) {
   try {
     const result = await rpc.call("starknet_call", {
       request: {
         contract_address: contract,
-        entry_point_selector: INTROSPECTION.selectors.supports_interface,
+        entry_point_selector: selectorFromName(method),
         calldata: [interfaceId],
       },
-      block_id: block,
+      block_id: blockId,
     });
     if (!Array.isArray(result) || result.length < 1)
       return { supported: false, error: "MALFORMED_RESPONSE" };
@@ -46,28 +48,31 @@ async function supportsInterface(rpc, contract, block, interfaceId) {
   }
 }
 
-async function classSummary(rpc, store, classHash, block) {
+async function classSummary(rpc, store, classHash, blockId, cacheWrite = true) {
   const cached = await store.get("class_evidence", classHash);
-  if (cached && Array.isArray(cached.functions)) return cached;
+  if (cached?.abiSummaryVersion === ABI_SUMMARY_VERSION && Array.isArray(cached.functions)) return cached;
   const contract = await rpc.call("starknet_getClass", {
     class_hash: classHash,
-    block_id: { block_number: block },
+    block_id: blockId,
   });
   const summary = summarizeAbi(contract?.abi ?? [], { classHash });
-  await store.put("class_evidence", classHash, summary);
+  if (cacheWrite) await store.put("class_evidence", classHash, summary);
   return summary;
 }
 
 /** Resolve get_implementation(): may return an address or a class hash. */
-async function resolveImplementation(rpc, store, value, block) {
-  const raw = typeof value === "bigint" ? value : BigInt(value);
-  const asAddress = address("0x" + raw.toString(16));
+async function resolveImplementation(rpc, store, value, blockId, cacheWrite, classHashOnly = false) {
+  const raw = BigInt(uint(value, 252));
+  const hash = "0x" + raw.toString(16);
+  let asAddress = null;
   try {
+    if (classHashOnly) throw new Error("The verified storage adapter stores a class hash");
+    asAddress = address(hash);
     const targetClass = await rpc.call("starknet_getClassHashAt", {
       contract_address: asAddress,
-      block_id: { block_number: block },
+      block_id: blockId,
     });
-    const summary = await classSummary(rpc, store, targetClass, block);
+    const summary = await classSummary(rpc, store, targetClass, blockId, cacheWrite);
     return {
       address: asAddress,
       classHash: targetClass,
@@ -79,12 +84,13 @@ async function resolveImplementation(rpc, store, value, block) {
       const summary = await classSummary(
         rpc,
         store,
-        "0x" + raw.toString(16),
-        block,
+        hash,
+        blockId,
+        cacheWrite,
       );
       return {
         address: null,
-        classHash: "0x" + raw.toString(16),
+        classHash: hash,
         summary,
         resolved: true,
       };
@@ -94,42 +100,41 @@ async function resolveImplementation(rpc, store, value, block) {
   }
 }
 
-async function classifyCandidate(rpc, store, record, block) {
-  const contract = address(record.address);
-  const classHash = await rpc.call("starknet_getClassHashAt", {
-    contract_address: contract,
-    block_id: { block_number: block },
-  });
-  const summary = await classSummary(rpc, store, classHash, block);
-
-  const probes = [];
-  if (summary.functions.includes("supports_interface")) {
-    for (const probe of PROBE_ORDER) {
-      const outcome = await supportsInterface(
-        rpc,
-        contract,
-        block,
-        INTROSPECTION.interfaces[probe.key],
-      );
-      probes.push({
-        name: probe.name,
-        interfaceId: INTROSPECTION.interfaces[probe.key],
-        ...outcome,
-      });
-    }
+// Exact deployed bytecode identity, independently observed in the checked-in
+// legacy-mainnet fixture. Other __default__ proxies cannot inherit this slot.
+const OZ_CAIRO0_PROXY = "0x71429d7850e4421236ed7e4f58b7778fc0e0c01b8770335ba4140bcb13733e9";
+const IMPLEMENTATION_GETTERS = ["get_implementation", "getImplementation", "implementation", "get_implementation_hash"];
+function pinnedBlockId(value) {
+  if (value?.block_hash != null) {
+    try { uint(value.block_hash, 252); } catch { throw new ApiError("INVALID_BLOCK", "Expected a canonical block hash", 400); }
+    return { block_hash: value.block_hash };
   }
+  if (Number.isSafeInteger(value?.block_number) && value.block_number >= 0) return { block_number: value.block_number };
+  throw new ApiError("INVALID_BLOCK", "Class evidence requires a pinned block hash or number", 400);
+}
 
+/**
+ * Load immutable class evidence and resolve a supported proxy at one exact
+ * chain position. This proves a block observation, never a complete proxy
+ * upgrade interval. cacheWrite:false supports the metadata reader role.
+ */
+export async function resolveClassEvidence(rpc, store, { classHash, contractAddress, blockId, cacheWrite = true }) {
+  const block = pinnedBlockId(blockId);
+  const contract = address(contractAddress);
+  const summary = await classSummary(rpc, store, classHash, block, cacheWrite);
   let implementation = null,
     proxyUncertainty = null;
-  if (summary.functions.includes("get_implementation")) {
+  const proxyEvidence = [];
+  const getters = IMPLEMENTATION_GETTERS.filter((method) => summary.zeroArgumentFunctions?.includes(method));
+  for (const method of getters) {
     try {
       const value = await rpc.call("starknet_call", {
         request: {
           contract_address: contract,
-          entry_point_selector: INTROSPECTION.selectors.get_implementation,
+          entry_point_selector: selectorFromName(method),
           calldata: [],
         },
-        block_id: { block_number: block },
+        block_id: block,
       });
       if (Array.isArray(value) && value.length && BigInt(value[0]) !== 0n) {
         implementation = await resolveImplementation(
@@ -137,13 +142,59 @@ async function classifyCandidate(rpc, store, record, block) {
           store,
           value[0],
           block,
+          cacheWrite,
         );
         proxyUncertainty = implementation.resolved
           ? "proxy_verified"
           : "proxy_unverified";
+        proxyEvidence.push({ kind: "proxy_implementation", adapter: "implementation-getter.v1", method, blockId: block, proxyClassHash: classHash, implementationClassHash: implementation.classHash, resolved: implementation.resolved });
+        if (implementation.resolved) break;
+      } else {
+        proxyUncertainty = "proxy_unverified";
+        proxyEvidence.push({ kind: "proxy_implementation", adapter: "implementation-getter.v1", method, blockId: block, reason: "empty_implementation_getter" });
       }
-    } catch {
+    } catch (error) {
       proxyUncertainty = "proxy_unverified";
+      proxyEvidence.push({ kind: "proxy_implementation", adapter: "implementation-getter.v1", method, blockId: block, reason: "implementation_getter_failed", code: error?.code ?? "CALL_FAILED" });
+    }
+  }
+  if (!implementation?.resolved && BigInt(classHash) === BigInt(OZ_CAIRO0_PROXY)) {
+    const storageKey = selectorFromName("Proxy_implementation_hash");
+    const evidence = { kind: "proxy_implementation", adapter: "oz-cairo0-implementation-slot.v1", blockId: block, proxyClassHash: classHash, storageKey };
+    try {
+      const value = await rpc.call("starknet_getStorageAt", { contract_address: contract, key: storageKey, block_id: block });
+      if (BigInt(value) === 0n) {
+        proxyUncertainty = "proxy_unverified";
+        proxyEvidence.push({ ...evidence, reason: "empty_implementation_slot" });
+      } else {
+        implementation = await resolveImplementation(rpc, store, value, block, cacheWrite, true);
+        proxyUncertainty = implementation.resolved ? "proxy_verified" : "proxy_unverified";
+        proxyEvidence.push({ ...evidence, implementationClassHash: implementation.classHash, resolved: implementation.resolved, ...(!implementation.resolved ? { reason: "implementation_class_unavailable" } : {}) });
+      }
+    } catch (error) {
+      proxyUncertainty = "proxy_unverified";
+      proxyEvidence.push({ ...evidence, reason: "implementation_slot_failed", code: error?.code ?? "CALL_FAILED" });
+    }
+  } else if (!implementation?.resolved && summary.functions.includes("__default__") && !proxyEvidence.length) {
+    proxyUncertainty = "proxy_unverified";
+    proxyEvidence.push({ kind: "proxy_implementation", blockId: block, proxyClassHash: classHash, reason: "unsupported_proxy_layout" });
+  }
+  if (implementation?.resolved) implementation.provenance = proxyEvidence.at(-1);
+  return { summary, effectiveSummary: implementation?.summary ?? summary, implementation, proxyUncertainty, proxyEvidence };
+}
+
+async function classifyCandidate(rpc, store, record, block, hash) {
+  const contract = address(record.address);
+  const blockId = { block_hash: hash };
+  const classHash = await rpc.call("starknet_getClassHashAt", { contract_address: contract, block_id: blockId });
+  const resolved = await resolveClassEvidence(rpc, store, { classHash, contractAddress: contract, blockId });
+  const { summary, effectiveSummary, implementation, proxyUncertainty, proxyEvidence } = resolved;
+  const probes = [];
+  const supports = ["supports_interface", "supportsInterface"].find((method) => effectiveSummary.functions.includes(method));
+  if (supports) {
+    for (const probe of PROBE_ORDER) {
+      const outcome = await supportsInterface(rpc, contract, blockId, INTROSPECTION.interfaces[probe.key], supports);
+      probes.push({ name: probe.name, interfaceId: INTROSPECTION.interfaces[probe.key], ...outcome });
     }
   }
 
@@ -152,8 +203,10 @@ async function classifyCandidate(rpc, store, record, block) {
     probes,
     implementation: implementation ?? null,
     proxyUncertainty,
+    proxyEvidence,
     classHash,
     evidenceBlock: block,
+    evidenceBlockHash: hash,
   });
 }
 
@@ -183,6 +236,8 @@ export async function classifyOnce(store, rpc, config, options = {}) {
     .filter((record) =>
       needsClassification(record, block, { maxAttempts: opts.maxAttempts }),
     )
+    .sort((a, b) => Number(Boolean(a.classification)) - Number(Boolean(b.classification)) ||
+      (a.classification?.evidenceBlock ?? -1) - (b.classification?.evidenceBlock ?? -1) || a.id.localeCompare(b.id))
     .slice(0, opts.limit);
   if (!candidates.length)
     return { skipped: "no_candidates", classified: 0, failed: 0, evidenceBlock: block };
@@ -192,7 +247,7 @@ export async function classifyOnce(store, rpc, config, options = {}) {
     opts.concurrency,
     async (record) => {
       try {
-        return { record, result: await classifyCandidate(rpc, store, record, block) };
+        return { record, result: await classifyCandidate(rpc, store, record, block, coverage.hash) };
       } catch (error) {
         return { record, error };
       }

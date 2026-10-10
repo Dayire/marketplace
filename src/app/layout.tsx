@@ -6,11 +6,24 @@ import { MarketplaceFooter } from "@/components/layout/marketplace-footer";
 import { Header } from "@/components/layout/header";
 import { MarketplaceLayout } from "@/components/layout/marketplace-layout";
 import { MarketplaceProvider } from "@/components/providers/marketplace-provider";
+import { getSiteUrl } from "@/lib/seo/site-url";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: getSiteUrl(),
   title: "Realms.market",
   description: "The Realms ecosystem marketplace",
+  openGraph: {
+    type: "website",
+    siteName: "Realms.market",
+    title: "Realms.market",
+    description: "The Realms ecosystem marketplace",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Realms.market",
+    description: "The Realms ecosystem marketplace",
+  },
   icons: {
     icon: "/rw-logo.svg",
     shortcut: "/rw-logo.svg",
