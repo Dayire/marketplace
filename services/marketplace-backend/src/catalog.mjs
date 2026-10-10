@@ -456,6 +456,55 @@ export class Catalog {
         : null,
     };
   }
+  /** Operator coverage report (#116): every chain record with an explicit
+   *  reason for anything unsupported, quarantined or unproven, plus
+   *  registered collections that still have no coverage. */
+  coverage() {
+    const records = this.store.list("catalog_collection");
+    const entries = records.map((record) => {
+      const evidence = record.classification?.evidence;
+      const reason =
+        record.state === "unsupported"
+          ? (evidence?.reason ??
+            record.classification?.uncertainty ??
+            "unsupported contract type")
+          : record.state === "failed"
+            ? (record.quarantine?.last?.message ??
+              record.classification?.uncertainty ??
+              "classification failed")
+            : null;
+      return {
+        address: record.address,
+        state: record.state,
+        standard: record.standard ?? null,
+        method: record.classification?.method ?? null,
+        reason,
+        quarantine: record.quarantine
+          ? {
+              observations: record.quarantine.observations,
+              last: record.quarantine.last,
+            }
+          : null,
+        ...(record.gaps?.length ? { gaps: record.gaps } : {}),
+      };
+    });
+    const notIndexed = (this.config.collections ?? [])
+      .map((c) => ({
+        address: address(c.address),
+        startBlock: c.startBlock ?? null,
+      }))
+      .filter((c) => this.store.get("progress", c.address)?.block == null);
+    const counts = {};
+    for (const entry of entries)
+      counts[entry.state] = (counts[entry.state] ?? 0) + 1;
+    return {
+      counts,
+      unsupported: entries.filter((entry) => entry.state === "unsupported"),
+      quarantined: entries.filter((entry) => entry.quarantine),
+      notIndexed,
+      records: entries,
+    };
+  }
   /** Chain-scope (full-chain) discovery results, clearly labeled so search
    *  consumers never mistake them for indexed holdings. */
   discoveredCollections(q) {

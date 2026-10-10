@@ -405,7 +405,9 @@ export function createApi({ store, config, rpc, verifySignature }) {
           });
           result = { queued: true };
         }
-        if (route[1] === "audit" && req.method === "GET")
+        if (route[1] === "coverage" && req.method === "GET")
+          result = catalog.coverage();
+                if (route[1] === "audit" && req.method === "GET")
           result = await app.audit();
         if (req.method === "POST") await app.recordAudit(route.join("/"), data);
       } else if (

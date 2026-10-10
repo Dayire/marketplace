@@ -35,9 +35,9 @@ function catalogFixture() {
     },
     {},
   );
-  const patched = collectionRecord(
-    discovered,
-    classificationPatch(discovered, {
+  const patched = collectionRecord({
+    ...discovered,
+    ...classificationPatch(discovered, {
       standard: "ERC721",
       classification: {
         method: "erc165",
@@ -45,7 +45,7 @@ function catalogFixture() {
         evidence: { interfaceIds: ["0x80ac58cd"] },
       },
     }),
-  );
+  });
   store.put("catalog_collection", patched.id, patched);
   return { store, config, catalog: new Catalog(store, config) };
 }
