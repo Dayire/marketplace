@@ -6,6 +6,7 @@ export const TABLES = Object.freeze({
   collection: "market.collections",
   catalog_collection: "chain.collection_catalog",
   source_coverage: "chain.source_coverage",
+  discovery_anchor: "chain.discovery_anchors",
   token: "market.tokens",
   order: "market.orders",
   activity: "market.activity",
