@@ -1,6 +1,7 @@
 import { marketStatus } from "./status.mjs";
 import { createHash } from "node:crypto";
 import { address, uint, boundedInteger, ApiError } from "./domain.mjs";
+import { collectionKey } from "./collection-catalog.mjs";
 const j = (alias, path) => `json_extract(${alias}.body,'$.${path}')`;
 function filtersSql(options, params, omit) {
   const clauses = [];
@@ -226,11 +227,14 @@ export class Catalog {
       q: options.q,
       tokenIds: options.tokenIds,
     };
-    return this.page(sql, [...prefix, ...subParams, ...params], {
+    const page = this.page(sql, [...prefix, ...subParams, ...params], {
       ...options,
       scope,
       descending: sort.endsWith("desc") || sort === "recent",
     });
+    // Token holdings are always backed by indexed supported collections;
+    // chain-wide claims live under discoveredCollections / operator catalog.
+    return { ...page, basis: "indexed" };
   }
   token(collection, id) {
     this.assertVisible(collection);
@@ -413,11 +417,68 @@ export class Catalog {
       .get(`verification:${a}`);
     return {
       ...c,
+      ...this.chainState(a),
       verified: verification ? JSON.parse(verification.value).verified : false,
       tokenCount: String(tokens),
       listingCount: String(listingCount),
       floorByCurrency: floors,
     };
+  }
+  /** Indexed provenance for one collection: live source coverage plus the
+   *  chain-derived discovery/classification record. Additive — existing
+   *  consumers keep every field they already read. */
+  chainState(raw) {
+    const a = address(raw);
+    const progress = this.store.get("progress", a) ?? null;
+    const record = this.config.chainId
+      ? (this.store.get(
+          "catalog_collection",
+          collectionKey(this.config.chainId, a),
+        ) ?? null)
+      : null;
+    return {
+      coverage: progress
+        ? {
+            startBlock: progress.startBlock ?? null,
+            block: progress.block,
+            hash: progress.hash,
+            observedAt: progress.observedAt ?? null,
+          }
+        : null,
+      chain: record
+        ? {
+            state: record.state,
+            standard: record.standard,
+            method: record.classification?.method ?? null,
+            uncertainty: record.classification?.uncertainty ?? null,
+            decoderVersion: record.decoderVersion ?? null,
+          }
+        : null,
+    };
+  }
+  /** Chain-scope (full-chain) discovery results, clearly labeled so search
+   *  consumers never mistake them for indexed holdings. */
+  discoveredCollections(q) {
+    const needle = typeof q === "string" ? q.trim().toLowerCase() : "";
+    return this.store
+      .list("catalog_collection")
+      .filter((record) => record.standard === "ERC721")
+      .filter(
+        (record) =>
+          !needle ||
+          String(record.address).toLowerCase().includes(needle) ||
+          String(record.classification?.name ?? "")
+            .toLowerCase()
+            .includes(needle),
+      )
+      .slice(0, 20)
+      .map((record) => ({
+        address: record.address,
+        state: record.state,
+        standard: record.standard,
+        method: record.classification?.method ?? null,
+        basis: "chain",
+      }));
   }
   activity(options = {}) {
     const params = [],
@@ -463,6 +524,7 @@ export class Catalog {
         )
         .slice(0, 20),
       tokens: this.tokens(null, { q, limit: 20 }).items,
+      discoveredCollections: this.discoveredCollections(q),
     };
   }
   stats(collection, { currency, days = 7 } = {}) {

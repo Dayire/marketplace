@@ -71,20 +71,37 @@ export async function expandMetadataJobs(store) {
     }
   }
 }
-export async function metadataCandidates(store, now, limit) {
-  if (store.dialect === "postgres")
-    return (
-      await store.query(
-        "SELECT t.body || COALESCE(m.body,'{}'::jsonb) AS body FROM market.tokens t LEFT JOIN market.token_metadata m ON m.id=t.id LEFT JOIN market.metadata_jobs job ON job.id=t.id WHERE NOT t.burned AND COALESCE((job.body->>'leaseUntil')::bigint,0)<$1 AND (COALESCE((m.body->>'metadataNextAttempt')::bigint,0)<$1 OR job.body->>'state'='pending') ORDER BY CASE WHEN job.body->>'state'='pending' THEN 0 ELSE 1 END, CASE WHEN m.body->>'image' IS NULL THEN 0 ELSE 1 END, COALESCE((m.body->>'metadataFetchedAt')::bigint,0),t.id LIMIT $2",
-        [now, limit],
-      )
-    ).rows.map((r) => r.body);
-  return store.db
-    .prepare(
-      "SELECT t.body FROM entities t LEFT JOIN entities job ON job.kind='metadata_job' AND job.id=t.id WHERE t.kind='token' AND COALESCE(json_extract(t.body,'$.burned'),0)=0 AND COALESCE(json_extract(job.body,'$.leaseUntil'),0)<? AND (COALESCE(json_extract(t.body,'$.metadataNextAttempt'),0)<? OR json_extract(job.body,'$.state')='pending') ORDER BY CASE WHEN json_extract(job.body,'$.state')='pending' THEN 0 ELSE 1 END, CASE WHEN json_extract(t.body,'$.image') IS NULL THEN 0 ELSE 1 END, COALESCE(json_extract(t.body,'$.metadataFetchedAt'),0) LIMIT ?",
-    )
-    .all(now, now, limit)
-    .map((r) => JSON.parse(r.body));
+export async function metadataCandidates(store, now, limit, quota = null) {
+  // A per-collection quota keeps one collection from exhausting the queue;
+  // quota=null keeps the legacy unlimited ranking for existing callers.
+  const fetchLimit = quota == null ? limit : limit * 3;
+  const rows =
+    store.dialect === "postgres"
+      ? (
+          await store.query(
+            "SELECT t.body || COALESCE(m.body,'{}'::jsonb) AS body FROM market.tokens t LEFT JOIN market.token_metadata m ON m.id=t.id LEFT JOIN market.metadata_jobs job ON job.id=t.id WHERE NOT t.burned AND COALESCE((job.body->>'leaseUntil')::bigint,0)<$1 AND (COALESCE((m.body->>'metadataNextAttempt')::bigint,0)<$1 OR job.body->>'state'='pending') ORDER BY CASE WHEN job.body->>'state'='pending' THEN 0 ELSE 1 END, CASE WHEN m.body->>'image' IS NULL THEN 0 ELSE 1 END, COALESCE((m.body->>'metadataFetchedAt')::bigint,0),t.id LIMIT $2",
+            [now, fetchLimit],
+          )
+        ).rows.map((r) => r.body)
+      : store.db
+          .prepare(
+            "SELECT t.body FROM entities t LEFT JOIN entities job ON job.kind='metadata_job' AND job.id=t.id WHERE t.kind='token' AND COALESCE(json_extract(t.body,'$.burned'),0)=0 AND COALESCE(json_extract(job.body,'$.leaseUntil'),0)< ? AND (COALESCE(json_extract(t.body,'$.metadataNextAttempt'),0)< ? OR json_extract(job.body,'$.state')='pending') ORDER BY CASE WHEN json_extract(job.body,'$.state')='pending' THEN 0 ELSE 1 END, CASE WHEN json_extract(t.body,'$.image') IS NULL THEN 0 ELSE 1 END, COALESCE(json_extract(t.body,'$.metadataFetchedAt'),0),t.id LIMIT ?",
+          )
+          .all(now, now, fetchLimit)
+          .map((r) => JSON.parse(r.body));
+  if (quota == null) return rows;
+  const picked = [],
+    perCollection = new Map();
+  for (const body of rows) {
+    const collection =
+      body.collection ?? String(body.id ?? "").split(":")[0] ?? "unknown";
+    const used = perCollection.get(collection) ?? 0;
+    if (used >= quota) continue;
+    perCollection.set(collection, used + 1);
+    picked.push(body);
+    if (picked.length >= limit) break;
+  }
+  return picked;
 }
 export async function claimMetadataJob(store, token, now) {
   if (store.dialect === "postgres")

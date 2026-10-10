@@ -332,6 +332,8 @@ export async function refreshMetadata(
   {
     assetDir,
     limit = 10,
+    // At most half the pass can come from a single collection by default.
+    quota = null,
     concurrency = 4,
     fetchResource = fetchPublic,
     // Origin traffic shares one paced fetcher per host; injected fetchers run as given.
@@ -348,7 +350,8 @@ export async function refreshMetadata(
     );
   await expandMetadataJobs(store);
   const now = Date.now();
-  const tokens = await metadataCandidates(store, now, limit);
+  const perCollectionQuota = quota ?? Math.max(1, Math.ceil(limit / 2));
+  const tokens = await metadataCandidates(store, now, limit, perCollectionQuota);
   await mapConcurrent(tokens, concurrency, async (token) => {
     let patch;
     const claim = await claimMetadataJob(store, token, Date.now());
