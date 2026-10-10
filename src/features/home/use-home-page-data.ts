@@ -10,7 +10,7 @@ import type {
   FeaturedCollection,
   TrendingToken,
 } from "./types";
-import { getCollectionBannerImage } from "@/lib/marketplace/collection-banners";
+import { getCollectionImage } from "@/lib/marketplace/collection-banners";
 import { formatCurrencyAmount } from "@/lib/marketplace/amount-display";
 
 function normalizeAddress(address: string) {
@@ -53,7 +53,7 @@ export function useHomePageData() {
         return {
           address: c.address,
           name: c.name,
-          imageUrl: c.image ?? getCollectionBannerImage(c.name),
+          imageUrl: c.image ?? getCollectionImage(c.name),
           floorPrice: floor ? formatCurrencyAmount(floor.price, currency) : null,
           floorRaw: floor?.price ?? null,
           floorCurrency: currency,

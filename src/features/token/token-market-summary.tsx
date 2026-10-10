@@ -4,11 +4,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { ReactNode } from "react";
 import { InfoTip } from "@/components/marketplace/info-tip";
 import { MarketPrice } from "@/components/marketplace/market-price";
-import { sameCurrency } from "@/lib/marketplace/currency-store";
-import type { ApiOrder } from "@/lib/marketplace/types";
-import type { TokenActivityItem } from "./token-activity";
+import type { MarketAmount } from "@/lib/marketplace/market-figures";
 
-export type MarketAmount = { amount: string; currency: string };
+export type { MarketAmount } from "@/lib/marketplace/market-figures";
+export { pickLastSale, pickTopOffer } from "@/lib/marketplace/market-figures";
 
 export type TokenMarketSummaryProps = {
   /** Cheapest open listing in base units, including fees. */
@@ -30,65 +29,6 @@ const HELP = {
     "The highest open offer for this token or its collection. Funds stay in the bidder's wallet and are checked again when the owner accepts.",
   lastSale: "The most recent sale of this token filled on this marketplace.",
 } as const;
-
-function parseAmount(value: string) {
-  try {
-    return BigInt(value);
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Highest open offer, compared within one currency: the preferred currency
- * when any offer uses it, otherwise the currency of the leading offer.
- */
-export function pickTopOffer(
-  orders: ApiOrder[],
-  preferredCurrency?: string | null,
-): MarketAmount | null {
-  const offers = orders.filter(
-    (order) =>
-      order.kind !== "listing" && parseAmount(order.buyerDebit) !== null,
-  );
-  if (offers.length === 0) return null;
-
-  const preferred = preferredCurrency
-    ? offers.filter((order) => sameCurrency(order.currency, preferredCurrency))
-    : [];
-  const pool =
-    preferred.length > 0
-      ? preferred
-      : offers.filter((order) =>
-          sameCurrency(order.currency, offers[0].currency),
-        );
-
-  let best = pool[0];
-  let bestAmount = parseAmount(best.buyerDebit) ?? 0n;
-  for (const order of pool) {
-    const amount = parseAmount(order.buyerDebit) ?? 0n;
-    if (amount > bestAmount) {
-      best = order;
-      bestAmount = amount;
-    }
-  }
-  return { amount: best.buyerDebit, currency: best.currency };
-}
-
-/** The most recent fill carrying an amount, whatever order the events arrive in. */
-export function pickLastSale(items: TokenActivityItem[]): MarketAmount | null {
-  let latest: TokenActivityItem | null = null;
-  for (const item of items) {
-    if (item.type !== "order_filled" || !item.buyerDebit || !item.currency)
-      continue;
-    if (!latest || item.provenance.timestamp > latest.provenance.timestamp) {
-      latest = item;
-    }
-  }
-  return latest && latest.buyerDebit && latest.currency
-    ? { amount: latest.buyerDebit, currency: latest.currency }
-    : null;
-}
 
 function Tile({
   label,

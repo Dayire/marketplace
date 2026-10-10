@@ -335,6 +335,43 @@ against the fixture backend; not evidence of production validation:
 Still open from the table above: honest featured/trending labels beyond
 "recent sales", bulk portfolio actions, and notification links.
 
+### Link previews pass — 10 October 2026
+
+Implemented locally, covered by unit, renderer and Storybook browser tests, and
+checked against the fixture backend; not evidence of production validation:
+
+- Asset links unfurl as a generated card: artwork, collection, name, up to
+  seven traits and the price the asset page shows (cheapest fillable STRK
+  listing, otherwise the cheapest listing in the next configured currency;
+  unlisted assets show the top offer, then the last sale). Realms show only
+  resources; Loot Chests epoch and ID; Cosmetics epoch, rarity and type;
+  Golden Tokens the item number. The previous token image route failed to
+  render, and relative cached artwork URLs were dropped from metadata.
+- Collection links show banner art, floor, listed count and supply; every
+  other page uses a site-wide card. Image URLs carry a content version so a
+  price change yields a new URL for unfurlers that cache by URL; already
+  posted messages keep their original preview.
+- The server only reads backend-cached artwork, files in `public/` and inline
+  data URIs; it never fetches metadata origins. WebP/AVIF and uncached art
+  fall back to collection artwork rather than adding a transcoder.
+- The asset page has a Share menu, and an owner sees a share prompt once
+  their listing is indexed. Dismissing it hides it for that listing on that
+  device. Token preview data is cached for up to 60 seconds, so the prompt
+  says the price usually appears within a minute rather than immediately.
+  The share text prices from the holder's own listings, as the card does.
+- Cosmetics has a local collection image, a banner collage and a share
+  banner, so its cards, header and link previews no longer depend on IPFS
+  artwork.
+- Share rendering retries a failed font load, API client import or public
+  file read on the next request instead of failing until restart.
+
+Remaining evidence: share real launch-collection assets from staging to
+Discord, X and Telegram; measure how much artwork is WebP/AVIF or uncached;
+confirm SVG artwork containing text renders in the production container,
+which may lack system fonts; and exercise the owner prompt with a real
+wallet. The prompt follows the page's STRK listing query, so an owner whose
+only listing is in another currency does not see it.
+
 ## 8. Build sequence and gates
 
 Roles below are responsibilities, not a claim that people have been assigned.

@@ -1,4 +1,7 @@
-import { ImageResponse } from "next/og";
+import { renderTokenShareImage } from "@/features/share/render-share-image";
+import { getTokenShareData } from "@/lib/marketplace/seo-data";
+
+export const alt = "Asset preview on Realms.market";
 
 export const size = {
   width: 1200,
@@ -7,9 +10,13 @@ export const size = {
 
 export const contentType = "image/png";
 
-// Cache OG images at the edge for 60 seconds; revalidate in background.
-// Matches the token SEO data cache TTL in seo-data.ts.
-export const revalidate = 60;
+// Rendered per request rather than kept in Next's cache: there is one card per
+// asset (or per arbitrary requested URL) and each PNG can approach 1 MB, so
+// caching them would grow the container's disk without bound. The data behind it
+// is cached for a minute (seo-data.ts), and the response may be reused for a
+// minute by unfurlers or a CDN. Page metadata adds a content version to the
+// URL so a price change yields a new image URL.
+const MAX_AGE_SECONDS = 60;
 
 export default async function Image({
   params,
@@ -17,56 +24,7 @@ export default async function Image({
   params: Promise<{ address: string; tokenId: string }>;
 }) {
   const { address, tokenId } = await params;
-
-  return new ImageResponse(
-    (
-      <div
-        style={{
-          height: "100%",
-          width: "100%",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          background: "#09090b",
-          color: "#fafafa",
-          padding: "56px",
-          fontFamily: "ui-sans-serif, system-ui, sans-serif",
-        }}
-      >
-        <div
-          style={{
-            fontSize: 28,
-            letterSpacing: "0.12em",
-            textTransform: "uppercase",
-            color: "#a1a1aa",
-          }}
-        >
-          {address}
-        </div>
-
-        <div
-          style={{
-            fontSize: 72,
-            fontWeight: 700,
-            lineHeight: 1.1,
-            maxWidth: "88%",
-          }}
-        >
-          Token #{tokenId}
-        </div>
-
-        <div
-          style={{
-            fontSize: 30,
-            color: "#d4d4d8",
-          }}
-        >
-          Token
-        </div>
-      </div>
-    ),
-    {
-      ...size,
-    },
-  );
+  return renderTokenShareImage(await getTokenShareData(address, tokenId), {
+    maxAge: MAX_AGE_SECONDS,
+  });
 }

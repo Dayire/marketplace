@@ -15,6 +15,11 @@ it('uses indexed collection totals and only the selected currency floor',async()
  expect(result.current.collectionCards[0]).toMatchObject({name:'Realms',totalSupply:'9001',listingCount:'203',floorPrice:'2'});
  expect(result.current.trendingTokens).toEqual([]);
 });
+it('falls back to local collection artwork when the index has no collection image',async()=>{
+ request.mockResolvedValue([{address:'0xa',name:'Cosmetics',tokenCount:'1',listingCount:'0',floorByCurrency:[]},{address:'0xb',name:'Realms',image:'https://cdn.example/realms.png',tokenCount:'1',listingCount:'0',floorByCurrency:[]}]);
+ const {result}=renderHook(useHomePageData,{wrapper});await waitFor(()=>expect(result.current.isLoading).toBe(false));
+ expect(result.current.collectionCards.map(c=>c.imageUrl)).toEqual(['/collection-images/cosmetics.jpg','https://cdn.example/realms.png']);
+});
 it('does not invent collections or activity during an outage',async()=>{request.mockRejectedValue(new Error('Offline'));const {result}=renderHook(useHomePageData,{wrapper});await waitFor(()=>expect(result.current.isError).toBe(true));expect(result.current.collectionCards).toEqual([]);expect(result.current.featuredCollection).toBeNull();});
 it('shows an empty catalog without an invented floor',async()=>{request.mockResolvedValue([]);const {result}=renderHook(useHomePageData,{wrapper});await waitFor(()=>expect(result.current.isLoading).toBe(false));expect(result.current.collectionCards).toEqual([]);});
 

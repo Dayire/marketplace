@@ -2,7 +2,8 @@ import { TokenDetailSkeleton } from "@/components/marketplace/loading-state";
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { TokenDetailView } from "@/features/token/token-detail-view";
-import { buildMarketplacePageMetadata } from "@/lib/seo/metadata";
+import { buildMarketplacePageMetadata, shareCardImage } from "@/lib/seo/metadata";
+import { tokenShareCopy } from "@/lib/seo/share-copy";
 
 type TokenPageProps = {
   params: Promise<{ address: string; tokenId: string }>;
@@ -24,19 +25,17 @@ export async function generateMetadata({
   params,
 }: TokenPageProps): Promise<Metadata> {
   const { address, tokenId } = await params;
-  const { getTokenSeoData } = await import("@/lib/marketplace/seo-data");
-  const seoData = await getTokenSeoData(address, tokenId);
+  const { getTokenShareData } = await import("@/lib/marketplace/seo-data");
+  const card = await getTokenShareData(address, tokenId);
+  const copy = tokenShareCopy(card);
+  const pathname = `/collections/${address}/${tokenId}`;
 
   return buildMarketplacePageMetadata({
-    title: `${seoData.tokenName} | ${seoData.collectionName} | Realms.market`,
-    description:
-      seoData.description ??
-      `View listings and activity for ${seoData.tokenName}.`,
-    pathname: `/collections/${address}/${tokenId}`,
-    image:
-      seoData.image ??
-      seoData.collectionImage ??
-      `/collections/${address}/${tokenId}/opengraph-image`,
-    noIndex: !seoData.exists,
+    title: `${card.tokenName} | ${card.collectionName} | Realms.market`,
+    socialTitle: copy.socialTitle,
+    description: copy.description,
+    pathname,
+    image: shareCardImage(pathname, card.version, copy.imageAlt),
+    noIndex: !card.exists,
   });
 }

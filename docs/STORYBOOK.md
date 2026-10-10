@@ -239,6 +239,27 @@ how rare each value is and render Realm resources with the in-game artwork
 from `public/resources`. The page itself keeps the order and listing forms
 collapsed until asked for.
 
+## Link previews and sharing
+
+`Share/Link previews` develops the 1200×630 cards that `next/og` renders for
+link unfurls: listed Realm (resources as icons, rarest first), top offer in
+LORDS, last sale, unlisted Cosmetic with a long name, Loot Chest, Golden
+Token, unavailable asset, collection, collection without listings and the
+site-wide default. The cards are inline-styled components because the
+renderer supports a CSS subset (every element with several children sets
+`display: flex`; no style key may be `undefined`). Stories register the same
+static Exo 2 instances the server uses and scale the card to the viewport,
+as unfurlers do. `render-share-image.test.tsx` renders every state through
+the real renderer, so a layout the renderer rejects fails `pnpm test`.
+
+`Share/Share actions` covers the asset page's Share menu (copy link, post on
+X, system share sheet when the browser has one, copy failure, keyboard use)
+and the owner's "Your listing is live" prompt, including a long price and a
+failed copy. Both were checked at 320, 375, 768 and 1280px for wrapping,
+44px touch targets and horizontal overflow, and on the running app's token
+page against the fixture backend. Clipboard and share-sheet calls are stubbed
+in stories; the owner prompt has not been exercised with a real wallet.
+
 ## Artwork and resource icons
 
 `TokenMedia` renders NFT artwork lazily, falls through alternate IPFS
