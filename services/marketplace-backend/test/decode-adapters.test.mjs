@@ -437,3 +437,70 @@ test("recordQuarantine fails the collection open with bounded evidence", async (
   assert.equal(stable.quarantine.observations, 3, "observations count replays");
   await store.close();
 });
+
+test("mint and burn are transfers with zero addresses, precision intact", () => {
+  const summary = summarizeAbi(ABI_CAIRO1_ENUM, { classHash: "0xabc" });
+  const mint = decodeEvent(
+    {
+      from_address: "0x9",
+      keys: [SELECTORS.Transfer, address("0x0"), "0x3", "12345678901234567890", "0"],
+      data: [],
+    },
+    cfg,
+    summary,
+  );
+  assert.equal(mint.type, "transfer");
+  assert.equal(mint.from, address("0x0"), "zero address marks the mint");
+  assert.equal(mint.tokenId, "12345678901234567890");
+  const burn = decodeEvent(
+    {
+      from_address: "0x9",
+      keys: [SELECTORS.Transfer, "0x3", address("0x0"), "42", "0"],
+      data: [],
+    },
+    cfg,
+    summary,
+  );
+  assert.equal(burn.to, address("0x0"), "zero address marks the burn");
+  assert.equal(burn.tokenId, "42");
+});
+
+test("metadata updates decode in both keyed and batched forms", () => {
+  const ABI_METADATA = [
+    { type: "function", name: "supports_interface", inputs: [] },
+    {
+      type: "event",
+      name: "ERC721Component::MetadataUpdate",
+      kind: "struct",
+      members: [{ name: "token_id", type: "core::integer::u256", kind: "key" }],
+    },
+    {
+      type: "event",
+      name: "BatchMetadataUpdate",
+      inputs: [
+        { name: "from_token_id", type: "Uint256" },
+        { name: "to_token_id", type: "Uint256" },
+      ],
+    },
+  ];
+  const summary = summarizeAbi(ABI_METADATA, { classHash: "0xabc" });
+  const single = decodeEvent(
+    { from_address: "0x9", keys: [SELECTORS.MetadataUpdate, "9", "0"], data: [] },
+    cfg,
+    summary,
+  );
+  assert.equal(single.type, "metadata_update");
+  assert.equal(single.tokenId, "9");
+  const batch = decodeEvent(
+    {
+      from_address: "0x9",
+      keys: [SELECTORS.BatchMetadataUpdate],
+      data: ["1", "0", "10", "0"],
+    },
+    cfg,
+    summary,
+  );
+  assert.equal(batch.type, "metadata_update");
+  assert.equal(batch.fromTokenId, "1");
+  assert.equal(batch.toTokenId, "10");
+});
