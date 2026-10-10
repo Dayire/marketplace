@@ -48,13 +48,17 @@ User confirmed inclusive buyer pricing, token-order royalty snapshots, capped fi
 The user selected Loot Chests, Cosmetics and Golden Token alongside Realms.
 The candidate `config/marketplace/registry.expansion.json` pins their contract
 classes and historical start blocks. Read-only RPC probes confirm ERC-721 and
-ERC-2981 support; sampled royalties are 500 bps. Loot Chests and Cosmetics expose
+ERC-2981 support; all 7,283 live tokens across the three new collections were
+checked at block 16061532 with a 10,000-unit sale quote and a maximum 500-bps royalty. Loot Chests and Cosmetics expose
 `token_is_locked`, which preflight must check at the same pinned block as ownership.
 The UI uses reviewed royalty ceilings and displays minimum seller proceeds;
 no editable royalty field is reintroduced. Existing Realms orders retain zero
-royalties. Expansion rollout is in progress: separate backfill, multi-collection
-supply/ownership/approval reconciliation, atomic projection cutover preserving
-application data/media, then administrator allowlisting and live verification.
+royalties. The separate backfill passed supply/ownership/approval reconciliation
+for all 12,415 live NFTs. Production projections were atomically replaced at block
+16093785, preserving application data and cached media. Administrator allowlisting
+for all three new collections succeeded at block 16093977. Metadata caching
+continues in the background; rollout evidence and Railway deployment IDs are in
+[the production record](evidence/collection-rollout-2026-10-09.json).
 
 ### PostgreSQL migration — authorized 8 October 2026
 

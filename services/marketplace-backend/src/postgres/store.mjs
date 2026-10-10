@@ -232,7 +232,7 @@ export class PgStore {
   async cachedImage(source) {
     const row = (
       await this.query(
-        "SELECT m.body->>'image' AS image FROM market.token_metadata m JOIN media.assets a ON a.name=regexp_replace(m.body->>'image','^.*/','') WHERE m.body->'metadata'->>'imageSourceUri'=$1 AND m.body->>'image' IS NOT NULL LIMIT 1",
+        "SELECT m.body->>'image' AS image FROM market.token_metadata m JOIN media.assets a ON a.name=regexp_replace(m.body->>'image','^.*/','') WHERE md5(m.body->'metadata'->>'imageSourceUri')=md5($1) AND m.body->'metadata'->>'imageSourceUri'=$1 AND m.body->>'image' IS NOT NULL LIMIT 1",
         [source],
       )
     ).rows[0];

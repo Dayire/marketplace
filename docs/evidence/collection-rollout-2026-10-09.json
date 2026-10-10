@@ -1,0 +1,185 @@
+{
+  "date": "2026-10-09",
+  "sourceCommit": "b0960e7",
+  "cutover": {
+    "head": {
+      "number": "16093785",
+      "hash": "0x46380431a97a2b86fea5455b2e39a1e9c093f404d25bfd97fdcb265c94e6a84"
+    },
+    "previousHead": {
+      "number": "16093780",
+      "hash": "0x4c7b791bda1a87384d2200250a291e3362d31fac7e4cfb6501fa793a5b5252e"
+    },
+    "generation": "3",
+    "counts": {
+      "chain.meta": 2,
+      "chain.blocks": 49769,
+      "chain.events": 18447,
+      "chain.undo": 268193,
+      "chain.progress": 5,
+      "chain.status": 2,
+      "chain.history_ranges": 154,
+      "chain.notification_outbox": 1,
+      "market.collections": 4,
+      "market.tokens": 12492,
+      "market.orders": 1,
+      "market.activity": 18447,
+      "market.configuration": 1,
+      "market.policies": 3,
+      "market.approvals": 12492,
+      "market.operator_approvals": 330,
+      "market.daily_stats": 0,
+      "market.floor_current": 0,
+      "market.floor_history": 0,
+      "market.metadata_jobs": 2956,
+      "market.token_metadata": 8148,
+      "market.attributes": 13091,
+      "media.assets": 23
+    }
+  },
+  "historicalReconciliation": {
+    "mode": "event_ranges",
+    "error": null,
+    "phase": "market_owners",
+    "state": "passed",
+    "cutoff": 16050532,
+    "supply": "1120",
+    "failure": null,
+    "lastOwner": "0x07e2e292250270f1cfef897350112f6d755669c2bd871b729c0c20b1a5bf5ff4",
+    "proofHash": "0x25814a9e76c433ddba67f1862d6dea8e2be3b6aa9a373d6f0877909d69913ff",
+    "completedAt": 1791487292174,
+    "lastTokenId": "1120",
+    "checkedTokens": 1120,
+    "checkpointHash": "0x3554afdc8f0f59aea23425a656dde81f1d9c44fa14fb95dc55217c9922b15fb",
+    "lastOperatorId": "0x027838dea749f41c6f8a44fcfa791788e6101080c1b3cd646a361f653ad10e2d:0x07e2e292250270f1cfef897350112f6d755669c2bd871b729c0c20b1a5bf5ff4:0x06bbf16b6c67b1bef27a187b499b2f3a14af31646c2c90d64f11b9087c3f527c",
+    "checkpointBlock": 16050532,
+    "collectionIndex": 3,
+    "checkedOperators": 25,
+    "completedCollections": [
+      {
+        "supply": "5132",
+        "address": "0x07ae27a31bb6526e3de9cf02f081f6ce0615ac12a6d7b85ee58b8ad7947a2809",
+        "checkedTokens": 5132,
+        "checkedOperators": 90
+      },
+      {
+        "supply": "3275",
+        "address": "0x0572fe34a769058c62a66f0c4854d08ccfd21fcbb4f0b1685a1868b84c6ee266",
+        "checkedTokens": 3275,
+        "checkedOperators": 146
+      },
+      {
+        "supply": "2888",
+        "address": "0x01f36515d7d307c9d3e41df48f29e9a6b4bbc445d0fbdbbce944a4678cd52b02",
+        "checkedTokens": 2888,
+        "checkedOperators": 69
+      },
+      {
+        "supply": "1120",
+        "address": "0x027838dea749f41c6f8a44fcfa791788e6101080c1b3cd646a361f653ad10e2d",
+        "checkedTokens": 1120,
+        "checkedOperators": 25
+      }
+    ]
+  },
+  "royalties": {
+    "head": {
+      "number": "16061532",
+      "hash": "0x67f611e6018ed7dd2314d47096b48c9c2d3f4aa2e2452b2d81785bf56e7141f"
+    },
+    "collections": [
+      {
+        "name": "Loot Chests",
+        "address": "0x0572fe34a769058c62a66f0c4854d08ccfd21fcbb4f0b1685a1868b84c6ee266",
+        "checkedTokens": 3275,
+        "maximumRoyaltyAt10000": "500"
+      },
+      {
+        "name": "Cosmetics",
+        "address": "0x01f36515d7d307c9d3e41df48f29e9a6b4bbc445d0fbdbbce944a4678cd52b02",
+        "checkedTokens": 2888,
+        "maximumRoyaltyAt10000": "500"
+      },
+      {
+        "name": "Golden Token",
+        "address": "0x027838dea749f41c6f8a44fcfa791788e6101080c1b3cd646a361f653ad10e2d",
+        "checkedTokens": 1120,
+        "maximumRoyaltyAt10000": "500"
+      }
+    ],
+    "passed": true
+  },
+  "metadata": "Partial cache at cutover; remaining artwork is populated by the metadata worker.",
+  "activation": {
+    "status": "confirmed",
+    "digest": "21ba7fe96fc0af7e198eaec4e05d379f0da9cb0b790b370fef78015ba212a95b",
+    "nonce": "0x4",
+    "maximumFeeFri": "201732008871740112",
+    "hash": "0xa3276edfe4b6032839a14d2f7c4d61fa924d7d053e38b0b743a0fac465af1c",
+    "block": 16093977,
+    "blockHash": "0x55ade525e0a0c40bc6158fea096dd1c43d8ccfe3722b0b816cb831dfa7f97d1",
+    "actualFee": {
+      "amount": "0x14a52509217fec0",
+      "unit": "FRI"
+    },
+    "events": [
+      {
+        "type": "collection_policy",
+        "address": "0x0572fe34a769058c62a66f0c4854d08ccfd21fcbb4f0b1685a1868b84c6ee266",
+        "enabled": true,
+        "royalties": true
+      },
+      {
+        "type": "collection_policy",
+        "address": "0x01f36515d7d307c9d3e41df48f29e9a6b4bbc445d0fbdbbce944a4678cd52b02",
+        "enabled": true,
+        "royalties": true
+      },
+      {
+        "type": "collection_policy",
+        "address": "0x027838dea749f41c6f8a44fcfa791788e6101080c1b3cd646a361f653ad10e2d",
+        "enabled": true,
+        "royalties": true
+      }
+    ]
+  },
+  "railwayDeployments": {
+    "web": "7cd74593-c9f8-4707-a433-fb1f6548ff19",
+    "backend": "a9c5ff20-8ead-4c0f-bfea-aa3eed2dc1a7",
+    "indexer": "edaec0ab-5afd-475f-89ff-9719172c3929",
+    "metadata": "94da8385-6a1f-4298-b93f-29f103b340bf"
+  },
+  "liveVerification": {
+    "checkedAt": "2026-10-08T20:35:00.206Z",
+    "indexedBlock": 16094091,
+    "chainHead": 16094091,
+    "lagBlocks": 0,
+    "safeForCheckout": true,
+    "sourceCount": 5,
+    "enabledCollections": [
+      {
+        "name": "Realms",
+        "enabled": true
+      },
+      {
+        "name": "Loot Chests",
+        "enabled": true
+      },
+      {
+        "name": "Cosmetics",
+        "enabled": true
+      },
+      {
+        "name": "Golden Token",
+        "enabled": true
+      }
+    ],
+    "goldenTokenArtwork": "Browser verified cached SVG loaded, natural width 150.",
+    "offerQuote": "Golden Token 10 STRK: 5% fee, up to 5% royalty, at least 9 STRK seller proceeds; no wallet transaction submitted."
+  },
+  "limitations": [
+    "Artwork cache population is ongoing; it is separate from completed ownership backfill.",
+    "Loot Chest token 1 on-chain image CID QmWqqT4awbuzaHM7e5EBf9GGzNDQRz4WauUDSctVe9ZeBW timed out from the metadata worker; Pinata returned 404 during a separate probe. Other probed gateways returned 429 or timed out. Original URI remains available for retries.",
+    "No real-wallet NFT trade was performed in this rollout."
+  ]
+}
