@@ -32,7 +32,6 @@ function harness() {
       if (method === "starknet_getClassHashAt") return CLASS;
       if (method === "starknet_getClass") return { abi: [] };
       if (method === "starknet_getEvents") {
-        const emitter = p.filter.address ? address(p.filter.address) : null;
         const lo = p.filter.from_block.block_number,
           hi = p.filter.to_block.block_number;
         const page = (n, sender, tx, tokenId) =>
@@ -46,9 +45,9 @@ function harness() {
                 },
               ]
             : [];
-        if (emitter === A) return { events: page(1, A, "0xaa", "1") };
-        if (emitter === X) return { events: page(3, X, "0xbb", "7") };
-        return { events: [] };
+        return {
+          events: [...page(1, A, "0xaa", "1"), ...page(3, X, "0xbb", "7")],
+        };
       }
       const n = p.block_id === "latest" ? 5 : Number(p.block_id.block_number);
       const block = {

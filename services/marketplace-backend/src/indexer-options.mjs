@@ -8,6 +8,8 @@ export function indexerOptions(env = process.env) {
     receiptConcurrency: read("MARKETPLACE_INDEX_CONCURRENCY", 8, 32),
     receiptBatchSize: read("MARKETPLACE_INDEX_RPC_BATCH", 1, 32),
     commitBatchSize: read("MARKETPLACE_INDEX_COMMIT_BATCH", 250, 1000),
+    maxWindowEvents: read("MARKETPLACE_INDEX_WINDOW_EVENT_BUDGET", 50000, 1000000, 100),
+    emitterBudget: read("MARKETPLACE_INDEX_EMITTER_BUDGET", 500, 100000, 10),
   };
 }
 

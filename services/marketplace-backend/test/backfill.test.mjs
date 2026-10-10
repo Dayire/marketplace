@@ -31,8 +31,7 @@ function harness({ reorgAt = null } = {}) {
     call: async (method, p) => {
       if (method === "starknet_chainId") return "0x1";
       if (method === "starknet_getEvents") {
-        // Mirror the per-source filter the scanner sends.
-        const emitter = p.filter.address ? address(p.filter.address) : null;
+        // Shared acquisition: one unfiltered pass returns every emitter.
         const lo = p.filter.from_block.block_number,
           hi = p.filter.to_block.block_number;
         const page = (n, sender, tx, tokenId) =>
@@ -46,9 +45,7 @@ function harness({ reorgAt = null } = {}) {
                 },
               ]
             : [];
-        if (emitter === A) return { events: page(1, A, "0xaa", "1") };
-        if (emitter === X) return { events: page(3, X, "0xbb", "7") };
-        return { events: [] };
+        return { events: [...page(1, A, "0xaa", "1"), ...page(3, X, "0xbb", "7")] };
       }
       if (method === "starknet_getClassHashAt") return CLASS;
       if (method === "starknet_getClass") return { abi: [] };

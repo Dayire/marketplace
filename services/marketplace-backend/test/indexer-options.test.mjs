@@ -9,6 +9,8 @@ test("index throughput controls are bounded and environment overrides are explic
     receiptConcurrency: 8,
     receiptBatchSize: 1,
     commitBatchSize: 250,
+    maxWindowEvents: 50000,
+    emitterBudget: 500,
   });
   assert.equal(
     indexerOptions({ MARKETPLACE_INDEX_CONCURRENCY: "8" }).receiptConcurrency,
@@ -17,6 +19,20 @@ test("index throughput controls are bounded and environment overrides are explic
   for (const value of ["0", "10000", "1.5", "NaN"])
     assert.throws(() =>
       indexerOptions({ MARKETPLACE_INDEX_CONCURRENCY: value }),
+    );
+  assert.equal(
+    indexerOptions({ MARKETPLACE_INDEX_WINDOW_EVENT_BUDGET: "1000" })
+      .maxWindowEvents,
+    1000,
+    "acquisition budgets are environment configurable",
+  );
+  assert.equal(
+    indexerOptions({ MARKETPLACE_INDEX_EMITTER_BUDGET: "42" }).emitterBudget,
+    42,
+  );
+  for (const value of ["10", "2000000", "1.5"])
+    assert.throws(() =>
+      indexerOptions({ MARKETPLACE_INDEX_WINDOW_EVENT_BUDGET: value }),
     );
 });
 

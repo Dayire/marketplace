@@ -8,6 +8,7 @@ import { mapConcurrent } from "./concurrency.mjs";
 import { address, ApiError } from "./domain.mjs";
 import { decodeEvent, DECODER_CAPABILITY } from "./decode.mjs";
 import { collectionKey, collectionRecord } from "./collection-catalog.mjs";
+import { emitterCandidateFields } from "./discovery.mjs";
 import { summarizeAbi } from "./classify.mjs";
 const equal = (a, b) => BigInt(a) === BigInt(b);
 const signature = (e) =>
@@ -42,6 +43,8 @@ async function scanRange(
     historyWindow = 100000,
     scope = null,
     from: fromOption = null,
+    maxWindowEvents = 50000,
+    emitterBudget = 500,
   } = {},
 ) {
   // Scoped mode = collection backfill overlay (#113): only the scoped
@@ -76,6 +79,12 @@ async function scanRange(
       );
   if (!Number.isSafeInteger(window) || window < 1 || window > 1000)
     throw new ApiError("INVALID_WINDOW", "Scan window must be 1–1000 blocks.");
+  for (const [value, label, min, max] of [
+    [maxWindowEvents, "window event budget", 100, 1000000],
+    [emitterBudget, "emitter budget", 10, 100000],
+  ])
+    if (!Number.isSafeInteger(value) || value < min || value > max)
+      throw new ApiError("INVALID_WINDOW", `Invalid bounded ${label}`);
   const identity = {
     chainId: "0x" + BigInt(config.chainId).toString(16),
     marketplace: config.marketplace ? address(config.marketplace) : null,
@@ -230,55 +239,78 @@ async function scanRange(
           503,
         );
     }
+  // One shared events acquisition per window routes every collection (#114):
+  // a single paged getEvents pass replaces one scan per collection; known
+  // emitters feed coverage and unknown emitters become discovery candidates.
   const found = new Map();
-  let eventTotal = 0;
-  for (const source of sources) {
-    if (source.start > end) continue;
-    const start = Math.max(from, source.start);
-    let cursor;
-    const cursors = new Set();
-    do {
-      const page = await rpc.call(
-        "starknet_getEvents",
-        {
-          filter: {
-            from_block: { block_number: start },
-            to_block: { block_number: end },
-            address: source.address,
-            keys: [],
-            chunk_size: 500,
-            ...(cursor ? { continuation_token: cursor } : {}),
-          },
+  const unknownEmitters = new Map();
+  const registry = new Map(
+    allSources.map((source) => [source.address, source]),
+  );
+  const marketplace = config.marketplace ? address(config.marketplace) : null;
+  let eventTotal = 0,
+    eventScans = 0,
+    malformedEmitters = 0;
+  let cursor;
+  const cursors = new Set();
+  do {
+    eventScans++;
+    const page = await rpc.call(
+      "starknet_getEvents",
+      {
+        filter: {
+          from_block: { block_number: from },
+          to_block: { block_number: end },
+          keys: [],
+          chunk_size: 500,
+          ...(cursor ? { continuation_token: cursor } : {}),
         },
-        { endpoint: rpc.urls?.[0] },
-      );
-      if (!Array.isArray(page.events))
-        throw new ApiError("INVALID_RPC_EVENTS", "Invalid event page.");
-      for (const e of page.events) {
-        if (
-          e.block_number < start ||
-          e.block_number > end ||
-          address(e.from_address) !== source.address
-        )
-          throw new ApiError("INVALID_RPC_EVENTS", "Out-of-scope RPC event.");
-        if (++eventTotal > 20000 && useFast)
-          throw new ApiError(
-            "HISTORY_RANGE_DENSE",
-            "Reduce the historical range window: too many events",
-            503,
-          );
+      },
+      { endpoint: rpc.urls?.[0] },
+    );
+    if (!Array.isArray(page.events))
+      throw new ApiError("INVALID_RPC_EVENTS", "Invalid event page.");
+    for (const e of page.events) {
+      if (e.block_number < from || e.block_number > end)
+        throw new ApiError("INVALID_RPC_EVENTS", "Out-of-scope RPC event.");
+      if (++eventTotal > maxWindowEvents)
+        throw new ApiError(
+          "WINDOW_EVENTS_DENSE",
+          "Window event budget exceeded; reduce the scan window or raise maxWindowEvents",
+          503,
+        );
+      let emitter;
+      try {
+        emitter = address(e.from_address);
+      } catch {
+        // Malformed emitter identities are isolated; acquisition continues.
+        malformedEmitters++;
+        continue;
+      }
+      const registered = registry.get(emitter);
+      if (registered) {
+        if (!sources.some((source) => source.address === emitter)) continue;
+        if (e.block_number < registered.start) continue;
         const entries = found.get(e.block_number) ?? [];
         entries.push(e);
         found.set(e.block_number, entries);
+      } else if (emitter !== marketplace) {
+        if (unknownEmitters.has(emitter))
+          unknownEmitters.set(
+            emitter,
+            Math.min(unknownEmitters.get(emitter), e.block_number),
+          );
+        else if (unknownEmitters.size < emitterBudget)
+          unknownEmitters.set(emitter, e.block_number);
       }
-      cursor = page.continuation_token;
-      if (cursor) {
-        if (cursors.has(cursor))
-          throw new ApiError("RPC_CURSOR_LOOP", "RPC repeated its cursor.");
-        cursors.add(cursor);
-      }
-    } while (cursor);
-  }
+    }
+    cursor = page.continuation_token;
+    if (cursor) {
+      if (cursors.has(cursor))
+        throw new ApiError("RPC_CURSOR_LOOP", "RPC repeated its cursor.");
+      cursors.add(cursor);
+    }
+  } while (cursor);
   const anchorCheck = await rpc.call("starknet_getBlockWithTxHashes", {
     block_id: { block_number: end },
   });
@@ -418,6 +450,26 @@ async function scanRange(
       }),
     );
   }
+  // Unknown emitters observed in the shared stream become discovery
+  // candidates, bounded by the emitter budget (#114).
+  let candidatesCreated = 0;
+  if (unknownEmitters.size) {
+    const generation = await store.generation();
+    for (const [emitter, block] of unknownEmitters) {
+      const id = collectionKey(config.chainId, emitter);
+      if (await store.get("catalog_collection", id)) continue;
+      const canonical = await store.canonicalBlock(block);
+      if (!canonical) continue; // reorged away; a later scan re-observes it
+      const record = collectionRecord({
+        chainId: config.chainId,
+        address: emitter,
+        ...emitterCandidateFields(),
+        replayGeneration: generation,
+      });
+      await store.put("catalog_collection", record.id, record, block);
+      candidatesCreated++;
+    }
+  }
   const finished = performance.now(),
     elapsedMs = Math.round(finished - started);
   return {
@@ -434,6 +486,10 @@ async function scanRange(
     blocksPerSecond: Number(
       (((end - from + 1) * 1000) / (finished - started)).toFixed(1),
     ),
+    eventScans,
+    unknownEmitters: unknownEmitters.size,
+    candidatesCreated,
+    malformedEmitters,
   };
 }
 export function prepareBlock(
