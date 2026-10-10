@@ -23,6 +23,8 @@
     "contracts:test": "node scripts/contracts/test.mjs",
     "contracts:build": "cd contracts/marketplace && scarb build",
     "backend:index": "node services/marketplace-backend/src/worker.mjs index",
+    "backend:discover": "node services/marketplace-backend/src/worker.mjs discover",
+    "backend:bench:discovery": "node services/marketplace-backend/bench/discovery.mjs",
     "backend:metadata": "node services/marketplace-backend/src/worker.mjs metadata",
     "contracts:devnet": "pnpm sdk:build && node scripts/contracts/devnet.mjs",
     "contracts:abi": "pnpm contracts:build && node scripts/contracts/export-abi.mjs",

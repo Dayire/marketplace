@@ -20,5 +20,8 @@ services:
   metadata:
     <<: *backend
     command: ["node", "services/marketplace-backend/src/worker.mjs", "metadata"]
+  discovery:
+    <<: *backend
+    command: ["node", "services/marketplace-backend/src/worker.mjs", "discover"]
 volumes:
   marketplace-data:
