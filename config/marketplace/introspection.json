@@ -18,6 +18,10 @@
     "erc1155": "OpenZeppelin/cairo-contracts packages/interfaces/src/token/erc1155.cairo (IERC1155_ID).",
     "erc2981": "OpenZeppelin/cairo-contracts packages/interfaces/src/token/erc2981.cairo (IERC2981_ID); also asserted in scripts/deployment/runner.mjs.",
     "erc165": "EIP-165 supportsInterface selector (0x01ffc9a7).",
-    "erc721Legacy": "EIP-721 interface id (0x80ac58cd) used by pre-SRC5 Cairo 0 collections for ERC165-style introspection."
+    "erc721Legacy": "EIP-721 interface id (0x80ac58cd) used by pre-SRC5 Cairo 0 collections for ERC165-style introspection.",
+    "eventEnumWrappers": "sn_keccak of the contract-level Cairo 1 event enum name, computed with starknet-devnet-sdk getSelectorFromName (validated against selectors.json); add wrappers here as deployed encodings are observed"
+  },
+  "eventEnumWrappers": {
+    "0x2d4fbe4956fedf49b5892807e00e7e9eea4680becba55f9187684a69e9424fa": "Event"
   }
 }

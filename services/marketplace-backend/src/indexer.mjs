@@ -6,7 +6,9 @@ import {
 } from "./history.mjs";
 import { mapConcurrent } from "./concurrency.mjs";
 import { address, ApiError } from "./domain.mjs";
-import { decodeEvent } from "./decode.mjs";
+import { decodeEvent, DECODER_CAPABILITY } from "./decode.mjs";
+import { collectionKey, collectionRecord } from "./collection-catalog.mjs";
+import { summarizeAbi } from "./classify.mjs";
 const equal = (a, b) => BigInt(a) === BigInt(b);
 const signature = (e) =>
   JSON.stringify([
@@ -258,6 +260,16 @@ async function scanRange(
       "CHAIN_CONFLICT",
       "Scan range changed during acquisition.",
     );
+  // Per-source ABI summaries (#112): decoded layouts are chosen by the class
+  // pinned at the scan anchor. Missing context simply falls back to the
+  // legacy fixed-order decode, so an unreachable ABI never blocks a scan.
+  const decoderContext = await buildDecoderContext(
+    store,
+    rpc,
+    sources,
+    config,
+    anchor.block_hash,
+  );
   const prepare = (n, block) => {
     if (
       block.block_number !== n ||
@@ -274,7 +286,15 @@ async function scanRange(
       return {
         n,
         hash: block.block_hash,
-        prepared: prepareBlock(n, block, found, sources, config, observedAt),
+        prepared: prepareBlock(
+          n,
+          block,
+          found,
+          sources,
+          config,
+          observedAt,
+          decoderContext,
+        ),
       };
     } catch (error) {
       return { n, hash: block.block_hash, error };
@@ -350,6 +370,24 @@ async function scanRange(
     }
     await flush();
   }
+  // Unsupported collection events quarantine the collection instead of
+  // stalling the scan or inventing state (#112). Raw rows are already in
+  // chain.events, so this is a bounded catalog write.
+  const quarantined = blocks.flatMap(
+    (block) => block.prepared?.quarantined ?? [],
+  );
+  if (quarantined.length) {
+    await recordQuarantine(store, config, quarantined);
+    console.log(
+      JSON.stringify({
+        event: "decode_quarantine",
+        at: new Date().toISOString(),
+        indexed: end,
+        count: quarantined.length,
+        code: quarantined[0].code,
+      }),
+    );
+  }
   const finished = performance.now(),
     elapsedMs = Math.round(finished - started);
   return {
@@ -368,12 +406,21 @@ async function scanRange(
     ),
   };
 }
-function prepareBlock(n, b, found, sources, config, observedAt) {
+export function prepareBlock(
+  n,
+  b,
+  found,
+  sources,
+  config,
+  observedAt,
+  context = null,
+) {
   const expected = found.get(n) ?? [];
   const active = new Set(
     sources.filter((s) => s.start <= n).map((s) => s.address),
   );
   const events = [],
+    quarantined = [],
     actual = [];
   for (const entry of b.transactions) {
     const receipt = entry.receipt;
@@ -400,9 +447,40 @@ function prepareBlock(n, b, found, sources, config, observedAt) {
       );
     if (receipt.execution_status === "REVERTED") continue;
     for (const [eventIndex, raw] of receipt.events.entries()) {
-      if (!active.has(address(raw.from_address))) continue;
+      const from = address(raw.from_address);
+      if (!active.has(from)) continue;
       actual.push({ raw, tx: transactionHash });
-      const event = decodeEvent(raw, config);
+      const marketSource =
+        !!config.marketplace && from === address(config.marketplace);
+      let event;
+      try {
+        event = decodeEvent(raw, config, context?.get(from) ?? null);
+      } catch (error) {
+        // Marketplace decode failures stay fatal; collection events are
+        // quarantined with their raw row kept replayable (#112).
+        if (marketSource) throw error;
+        const code = error?.code ?? "DECODE_FAILED";
+        const message = String(error?.message ?? error).slice(0, 200);
+        quarantined.push({
+          collection: from,
+          block: n,
+          transactionHash,
+          eventIndex,
+          code,
+          message,
+          selector: `0x${BigInt(raw.keys[0]).toString(16)}`,
+        });
+        events.push({
+          type: "undecodable",
+          collection: from,
+          raw,
+          transactionHash,
+          eventIndex,
+          decodeError: { code, message },
+          decoderVersion: DECODER_CAPABILITY,
+        });
+        continue;
+      }
       if (event) events.push({ ...event, raw, transactionHash, eventIndex });
     }
   }
@@ -427,5 +505,84 @@ function prepareBlock(n, b, found, sources, config, observedAt) {
     sources: [...active],
     sourceStarts: Object.fromEntries(sources.map((s) => [s.address, s.start])),
     observedAt,
+    quarantined,
   };
+}
+
+/** Pin class evidence per source at the scan anchor for decode adapters. */
+async function buildDecoderContext(store, rpc, sources, config, blockHash) {
+  const context = new Map();
+  if (!store || typeof store.get !== "function" || !rpc) return context;
+  const marketplace = config.marketplace ? address(config.marketplace) : null;
+  for (const source of sources) {
+    const normalized = address(source.address);
+    if (normalized === marketplace) continue;
+    try {
+      const classHash = await rpc.call("starknet_getClassHashAt", {
+        contract_address: normalized,
+        block_id: { block_hash: blockHash },
+      });
+      let summary = await store.get("class_evidence", classHash);
+      if (!summary) {
+        const contractClass = await rpc.call("starknet_getClass", {
+          class_hash: classHash,
+          block_id: { block_hash: blockHash },
+        });
+        summary = summarizeAbi(contractClass?.abi ?? [], { classHash });
+        await store.put("class_evidence", classHash, summary);
+      }
+      context.set(normalized, summary);
+    } catch {
+      // Context is strictly additive: a source without it decodes with the
+      // legacy rules and can be retried on the next scan.
+    }
+  }
+  return context;
+}
+
+/**
+ * Persist bounded quarantine evidence on the collection record. First and
+ * last are kept verbatim; observations counts evidence rows written, which
+ * can include replays after a rewind (the catalog write is idempotent in
+ * shape, never in invented state).
+ */
+export async function recordQuarantine(store, config, entries) {
+  if (!Array.isArray(entries) || !entries.length) return 0;
+  for (const entry of entries) {
+    const id = collectionKey(config.chainId, entry.collection);
+    let record = await store.get("catalog_collection", id);
+    if (!record)
+      record = collectionRecord({
+        chainId: config.chainId,
+        address: entry.collection,
+        state: "unknown",
+        standard: null,
+        deployment: null,
+        classHistory: [],
+        classification: null,
+        decoderVersion: null,
+        replayGeneration: 1,
+      });
+    const evidence = {
+      block: entry.block,
+      transactionHash: entry.transactionHash,
+      eventIndex: entry.eventIndex,
+      code: entry.code,
+      message: entry.message,
+      selector: entry.selector,
+    };
+    const previous = record.quarantine ?? null;
+    const quarantine = {
+      observations: (previous?.observations ?? 0) + 1,
+      first: previous?.first ?? evidence,
+      last: evidence,
+    };
+    const body = collectionRecord({
+      ...record,
+      state: "failed",
+      quarantine,
+    });
+    await store.put("catalog_collection", body.id, body, entry.block);
+  }
+  return entries.length;
 }

@@ -6,9 +6,32 @@ export const SELECTORS = JSON.parse(
     "utf8",
   ),
 );
+/** Decoder capability, versioned separately from class versions (#112). */
+export const DECODER_CAPABILITY = "nft-events.v2";
+export const UNKNOWN_COLLECTION_EVENT = "UNKNOWN_COLLECTION_EVENT";
+const INTROSPECTION = JSON.parse(
+  readFileSync(
+    new URL("../../../config/marketplace/introspection.json", import.meta.url),
+    "utf8",
+  ),
+);
 const selectorNames = new Map(
   Object.entries(SELECTORS).map(([k, v]) => [BigInt(v).toString(), k]),
 );
+/** Cairo 1 contracts can wrap NFT events inside an event enum (#112). */
+const eventEnumWrappers = new Map(
+  Object.entries(INTROSPECTION.eventEnumWrappers ?? {}).map(([selector, name]) => [
+    BigInt(selector).toString(),
+    name,
+  ]),
+);
+const NFT_EVENT_NAMES = new Set([
+  "Transfer",
+  "Approval",
+  "ApprovalForAll",
+  "MetadataUpdate",
+  "BatchMetadataUpdate",
+]);
 function reader(values) {
   let i = 0;
   const next = () => {
@@ -62,7 +85,7 @@ export function readTerms(data) {
     feeBps,
   };
 }
-export function decodeEvent(raw, config) {
+export function decodeEvent(raw, config, summary = null) {
   if (!Array.isArray(raw.keys) || !raw.keys.length || !Array.isArray(raw.data))
     throw new ApiError("INVALID_EVENT", "Invalid event envelope.");
   const source = address(raw.from_address),
@@ -160,9 +183,174 @@ export function decodeEvent(raw, config) {
   }
   if (!config.collections.some((c) => address(c.address) === source))
     return null;
-  const r = reader([...raw.keys.slice(1), ...raw.data]);
+  const resolved = resolveCollectionEvent(raw.keys);
+  if (!resolved.name) {
+    // Without ABI context the legacy "not modeled" answer stays a null drop;
+    // with context an unsupported selector is refused so the scanner can
+    // quarantine the collection instead of inventing state (#112).
+    if (!summary) return null;
+    throw new ApiError(
+      UNKNOWN_COLLECTION_EVENT,
+      `Unsupported collection event selector 0x${BigInt(resolved.unsupported).toString(16)}`,
+      409,
+      { collection: source, selector: resolved.unsupported },
+    );
+  }
+  const members = membersFor(summary, resolved.name);
+  const event = members
+    ? decodeWithMembers(raw, source, resolved, members)
+    : decodeFlattened(raw, source, resolved);
+  return { ...event, raw, decoderVersion: DECODER_CAPABILITY };
+}
+
+/** Flat selector or configured enum wrapper -> canonical NFT event name. */
+function resolveCollectionEvent(keys) {
+  const key0 = BigInt(keys[0]).toString();
+  const flat = selectorNames.get(key0);
+  if (flat && NFT_EVENT_NAMES.has(flat))
+    return { name: flat, consumedKeys: 1 };
+  const wrapper = eventEnumWrappers.get(key0);
+  if (wrapper) {
+    if (keys.length < 2)
+      throw new ApiError("INVALID_EVENT", "Truncated enum event.");
+    const variant = selectorNames.get(BigInt(keys[1]).toString());
+    if (variant && NFT_EVENT_NAMES.has(variant))
+      return { name: variant, consumedKeys: 2, enumName: wrapper };
+    return { unsupported: BigInt(keys[1]).toString() };
+  }
+  return { unsupported: BigInt(keys[0]).toString() };
+}
+
+const membersFor = (summary, name) =>
+  summary?.events?.find((e) => e.name === name && Array.isArray(e.members))
+    ?.members ?? null;
+
+const normalizeMember = (name) => String(name).toLowerCase().replaceAll("_", "");
+const MEMBER_FIELDS = {
+  from: "from",
+  to: "to",
+  tokenid: "tokenId",
+  id: "tokenId",
+  value: "value",
+  owner: "owner",
+  spender: "spender",
+  operator: "operator",
+  approved: "approved",
+  fromtokenid: "fromTokenId",
+  totokenid: "toTokenId",
+};
+const DECIMAL_FIELDS = new Set(["tokenId", "fromTokenId", "toTokenId", "value"]);
+
+/**
+ * ABI-member-driven layout: key members come from keys, data members from
+ * data, in declaration order. Flattening cannot represent interleaved
+ * key/data layouts, so this adapter owns them (#112).
+ */
+function decodeWithMembers(raw, source, resolved, members) {
+  const streams = {
+    key: [...raw.keys.slice(resolved.consumedKeys)],
+    data: [...raw.data],
+  };
+  const values = {};
+  for (const member of members) {
+    const stream = streams[member.kind === "key" ? "key" : "data"];
+    const take = (count) => {
+      if (stream.length < count)
+        throw new ApiError("INVALID_EVENT", "Truncated event fields.");
+      return stream.splice(0, count);
+    };
+    const type = String(member.type ?? "");
+    let value;
+    if (/u256|uint256/i.test(type)) {
+      const [low, high] = take(2);
+      value = fromU256(low, high);
+    } else if (/contractaddress|::address/i.test(type)) value = address(take(1)[0]);
+    else if (/bool/i.test(type)) value = uint(take(1)[0], 1) === "1";
+    else value = uint(take(1)[0], 252);
+    const field = MEMBER_FIELDS[normalizeMember(member.name)];
+    if (!field)
+      throw new ApiError(
+        "INVALID_EVENT",
+        `Unsupported event field ${member.name}.`,
+      );
+    if (DECIMAL_FIELDS.has(field) && typeof value === "string" && value.startsWith("0x"))
+      value = BigInt(value).toString();
+    values[field] = value;
+  }
+  if (streams.key.length || streams.data.length)
+    throw new ApiError("INVALID_EVENT", "Unexpected event fields.");
+  const require = (field) => {
+    if (values[field] === undefined)
+      throw new ApiError("INVALID_EVENT", `Missing event field ${field}.`);
+  };
+  let event;
+  if (resolved.name === "Transfer") {
+    require("from");
+    require("to");
+    require("tokenId");
+    event =
+      values.value !== undefined
+        ? {
+            type: "erc1155_transfer",
+            collection: source,
+            from: values.from,
+            to: values.to,
+            tokenId: values.tokenId,
+            value: values.value,
+          }
+        : {
+            type: "transfer",
+            collection: source,
+            from: values.from,
+            to: values.to,
+            tokenId: values.tokenId,
+          };
+  } else if (resolved.name === "Approval") {
+    require("owner");
+    require("spender");
+    require("tokenId");
+    event = {
+      type: "approval",
+      collection: source,
+      owner: values.owner,
+      spender: values.spender,
+      tokenId: values.tokenId,
+    };
+  } else if (resolved.name === "ApprovalForAll") {
+    require("owner");
+    require("operator");
+    require("approved");
+    event = {
+      type: "operator_approval",
+      collection: source,
+      owner: values.owner,
+      operator: values.operator,
+      approved: values.approved,
+    };
+  } else if (resolved.name === "MetadataUpdate") {
+    require("tokenId");
+    event = { type: "metadata_update", collection: source, tokenId: values.tokenId };
+  } else {
+    require("fromTokenId");
+    require("toTokenId");
+    event = {
+      type: "metadata_update",
+      collection: source,
+      fromTokenId: values.fromTokenId,
+      toTokenId: values.toTokenId,
+    };
+  }
+  return { ...event, decoder: "nft-members.v2" };
+}
+
+/** Legacy fixed-order adapter: key remainder first, then data. */
+function decodeFlattened(raw, source, resolved) {
+  const r = reader([
+    ...raw.keys.slice(resolved.consumedKeys),
+    ...raw.data,
+  ]);
   let e;
-  if (name === "Transfer")
+  if (resolved.name === "Transfer")
     e = {
       type: "transfer",
       collection: source,
@@ -170,7 +358,7 @@ export function decodeEvent(raw, config) {
       to: r.addr(),
       tokenId: r.u256(),
     };
-  else if (name === "Approval")
+  else if (resolved.name === "Approval")
     e = {
       type: "approval",
       collection: source,
@@ -178,7 +366,7 @@ export function decodeEvent(raw, config) {
       spender: r.addr(),
       tokenId: r.u256(),
     };
-  else if (name === "ApprovalForAll")
+  else if (resolved.name === "ApprovalForAll")
     e = {
       type: "operator_approval",
       collection: source,
@@ -186,9 +374,9 @@ export function decodeEvent(raw, config) {
       operator: r.addr(),
       approved: r.bool(),
     };
-  else if (name === "MetadataUpdate")
+  else if (resolved.name === "MetadataUpdate")
     e = { type: "metadata_update", collection: source, tokenId: r.u256() };
-  else if (name === "BatchMetadataUpdate")
+  else if (resolved.name === "BatchMetadataUpdate")
     e = {
       type: "metadata_update",
       collection: source,
@@ -197,5 +385,8 @@ export function decodeEvent(raw, config) {
     };
   else return null;
   r.end();
-  return e;
+  return {
+    ...e,
+    decoder: resolved.enumName ? "nft-enum.v2" : "nft-flat.v2",
+  };
 }

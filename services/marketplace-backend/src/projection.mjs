@@ -116,6 +116,11 @@ export function projectEvent(e, p, get, put) {
       { ...e, state: "pending", updatedAt: p },
       height,
     );
+  } else if (e.type === "undecodable" || e.type === "erc1155_transfer") {
+    // Raw evidence is already canonical in chain.events; no market state is
+    // derived here. ERC-1155 balance indexing lands with its own adapters
+    // (#117), and an undecodable event is quarantined by the scanner (#112).
+    return;
   } else throw new ApiError("UNKNOWN_EVENT", `Unsupported event: ${e.type}`);
   const id = `${p.blockHash}:${p.transactionHash}:${p.eventIndex}`;
   if (e.type === "order_filled") {

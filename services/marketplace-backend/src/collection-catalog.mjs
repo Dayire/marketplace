@@ -100,9 +100,35 @@ export function collectionRecord(value) {
       1,
     ),
   };
+  if (value.quarantine != null)
+    result.quarantine = quarantineEvidence(value.quarantine);
   if (value.id != null && value.id !== result.id)
     invalid("Catalog identity mismatch");
   return result;
+}
+
+/** Bounded decode-quarantine evidence written by the scanner (#112). */
+function quarantineEvidence(value) {
+  if (typeof value !== "object") invalid("Invalid quarantine evidence");
+  const entry = (label, item) => {
+    if (item == null || typeof item !== "object")
+      invalid(`Invalid ${label} quarantine entry`);
+    const message = String(item.message ?? "");
+    if (message.length > 240) invalid(`Quarantine ${label} message too long`);
+    return {
+      block: integer(item.block, `${label} quarantine block`),
+      transactionHash: String(item.transactionHash ?? ""),
+      eventIndex: integer(item.eventIndex, `${label} quarantine event index`),
+      code: String(item.code ?? ""),
+      message,
+      selector: item.selector == null ? null : hex(item.selector),
+    };
+  };
+  return {
+    observations: integer(value.observations, "quarantine observations", 1),
+    first: entry("first", value.first),
+    last: entry("last", value.last),
+  };
 }
 
 /** Coverage is independent of classification and product policy. Nulls remain unknown. */

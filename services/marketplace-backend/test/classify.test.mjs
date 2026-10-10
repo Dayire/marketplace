@@ -201,6 +201,11 @@ test("SRC5 ERC-721 support classifies with interface evidence", async () => {
   await classifyOnce(store, rpc, CONFIG);
   const rec = await record(store, a);
   assert.equal(rec.standard, "ERC721");
+  assert.equal(
+    rec.decoderVersion,
+    "nft-events.v2",
+    "decoder capability is versioned on the record, separately from classHistory",
+  );
   assert.equal(rec.state, "candidate");
   assert.equal(rec.classification.method, "src5");
   assert.equal(rec.classification.classHash, CLASS(2));
@@ -415,7 +420,16 @@ test("ABI summaries and staleness rules are pure and layout-aware", () => {
     { type: "event", name: "Transfer", inputs: [{ name: "a" }, { name: "b" }, { name: "c" }] },
     { type: "function", name: "balanceOf" },
   ]);
-  assert.deepEqual(cairo0.events[0], { name: "Transfer", keys: 1, data: 3 });
+  assert.deepEqual(cairo0.events[0], {
+    name: "Transfer",
+    keys: 1,
+    data: 3,
+    members: [
+      { name: "a", kind: "data", type: "felt" },
+      { name: "b", kind: "data", type: "felt" },
+      { name: "c", kind: "data", type: "felt" },
+    ],
+  });
   assert.deepEqual(cairo0.functions, ["balanceOf"]);
   const nested = summarizeAbi([
     { type: "event", name: "pkg::ERC721::Transfer", kind: "enum", variants: [] },

@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { ApiError } from "./domain.mjs";
 import { activeClassInterval } from "./discovery.mjs";
+import { DECODER_CAPABILITY } from "./decode.mjs";
 
 /** Interface ids and entrypoint selectors for contract classification (#111). */
 export const INTROSPECTION = JSON.parse(
@@ -59,19 +60,42 @@ export function summarizeAbi(abi, { classHash = null } = {}) {
     else if (item.type === "event" && typeof item.name === "string") {
       const short = item.name.split("::").pop().split("#").pop();
       if (item.kind === "enum") {
-        // Nested/enum events are decoded by their variants; layouts stay unknown.
-        events.push({ name: short, keys: null, data: null, enum: true });
+        // Enum wrappers are resolved by selector; variants carry the name.
+        events.push({
+          name: short,
+          keys: null,
+          data: null,
+          enum: true,
+          variants: (Array.isArray(item.variants) ? item.variants : []).map(
+            (variant) => ({ name: variant?.name, kind: variant?.kind }),
+          ),
+        });
         continue;
       }
       if (Array.isArray(item.members)) {
+        // Member kinds/types drive the decoder's key/data split (#112).
         events.push({
           name: short,
           keys: item.members.filter((m) => m?.kind === "key").length,
           data: item.members.filter((m) => m?.kind === "data").length,
+          members: item.members.map((m) => ({
+            name: m?.name,
+            kind: m?.kind === "key" ? "key" : "data",
+            type: m?.type ?? "felt",
+          })),
         });
       } else if (Array.isArray(item.inputs)) {
         // Cairo 0: the selector is the only key; all inputs ride in data.
-        events.push({ name: short, keys: 1, data: item.inputs.length });
+        events.push({
+          name: short,
+          keys: 1,
+          data: item.inputs.length,
+          members: item.inputs.map((input) => ({
+            name: input?.name,
+            kind: "data",
+            type: input?.type ?? "felt",
+          })),
+        });
       } else events.push({ name: short, keys: null, data: null });
     }
   }
@@ -219,6 +243,9 @@ export function classificationPatch(record, { standard, classification, state: f
   return {
     standard: standard ?? null,
     classification: trimEvidence(classification),
+    // Decoder capability is versioned on the record, independent of the
+    // class hash intervals in classHistory (#112).
+    ...(standard ? { decoderVersion: DECODER_CAPABILITY } : {}),
     state,
   };
 }
